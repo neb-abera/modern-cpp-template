@@ -246,6 +246,7 @@ ClientBin/
 *.pfx
 *.publishsettings
 orleans.codegen.cs
+*.DS_Store
 
 #KDevelop
 *.kdev4
