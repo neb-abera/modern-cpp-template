@@ -4,6 +4,9 @@ CMakeCache.*
 CMakeFiles/*
 [Tt]esting/*
 
+### JetBrains ###
+.idea/*
+
 ### VisualStudioCode ###
 .vscode/*
 .vscode/settings.json
