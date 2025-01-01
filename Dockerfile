@@ -25,15 +25,28 @@ RUN apt install -y \
 
 RUN echo "Installing dependencies not found in the package repos..."
 
-RUN apt install -y wget tar build-essential libssl-dev && \
-			wget https://github.com/Kitware/CMake/releases/download/v3.15.0/cmake-3.15.0.tar.gz && \
-			tar -zxvf cmake-3.15.0.tar.gz && \
-			cd cmake-3.15.0 && \
-			./bootstrap && \
-			make && \
-			make install 
+# Install the latest precompiled version of CMake
+ RUN curl -s https://api.github.com/repos/Kitware/CMake/releases/latest | \
+     grep "browser_download_url.*linux-x86_64.tar.gz" | \
+     cut -d '"' -f 4 | \
+     xargs curl -LO && \
+     mkdir -p /opt/cmake && \
+     tar --strip-components=1 -zxf cmake-*-linux-x86_64.tar.gz -C /opt/cmake && \
+     ln -s /opt/cmake/bin/cmake /usr/bin/cmake && \
+     ln -s /opt/cmake/bin/ctest /usr/bin/ctest && \
+     ln -s /opt/cmake/bin/cpack /usr/bin/cpack && \
+     rm cmake-*-linux-x86_64.tar.gz
 
-RUN pip3 install conan
+# Install necessary Python system packages
+RUN apt-get install -y python3-venv python3-dev python3-pip
+
+# Create a virtual environment for Conan
+RUN python3 -m venv /opt/conan-env && \
+    /opt/conan-env/bin/pip install --upgrade pip && \
+    /opt/conan-env/bin/pip install conan
+
+# Ensure the environment is activated for Docker builds
+ENV PATH="/opt/conan-env/bin:$PATH"
 
 RUN git clone https://github.com/catchorg/Catch2.git && \
 		 cd Catch2 && \
