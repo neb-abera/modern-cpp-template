@@ -14,7 +14,7 @@ is greatly appreciated!
 ## Features
 
 * Modern **CMake** configuration and project, which, to the best of my
-knowledge, uses the best practices — targets C++20 by default (configurable
+knowledge, uses the best practices — targets C++23 by default — the latest standard fully supported across GCC, Clang and MSVC (configurable
 through the `CXX_STANDARD` option) and installs headers through CMake
 [file sets](https://cmake.org/cmake/help/latest/command/target_sources.html),
 
@@ -47,8 +47,12 @@ or in CI. Individual test cases are registered with CTest via
 and *Conan 2* (see `conanfile.txt`),
 
 * **CI workflows for Windows, Linux and macOS** as a single matrix using
-*GitHub Actions*, plus an automated **release workflow** that packages the
-install tree for all three platforms and publishes a GitHub Release on tags,
+*GitHub Actions*, with builds treating **warnings as errors**, a dedicated
+**ASan + UBSan sanitizer job**, a **clang-format check**, and a **coverage
+job** — so a green run means the change built cleanly, passed every test
+(including under sanitizers) and is formatted, before it can merge. An
+automated **release workflow** packages the install tree for all three
+platforms and publishes a GitHub Release on tags,
 
 * **.md templates** for: *README*, *Contributing Guideliness*,
 *Issues* and *Pull Requests*,
@@ -74,8 +78,8 @@ template *as-is*, meaning using the versions recommended here, then you will nee
 
 * **CMake v3.28+** - found at [https://cmake.org/](https://cmake.org/)
 
-* **C++ Compiler** - needs to support at least the **C++20** standard, i.e.
-*MSVC*, *GCC*, *Clang* (the standard can be lowered to C++17 through the
+* **C++ Compiler** - needs to support at least the **C++23** standard, i.e.
+*MSVC*, *GCC*, *Clang* (the standard can be lowered to C++17/20 through the
 `<project_name>_CXX_STANDARD` option)
 
 > ***Note:*** *You also need to be able to provide ***CMake*** a supported

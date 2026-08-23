@@ -1,6 +1,6 @@
-#include "project/tmp.hpp"
-
 #include <cstdio>
+
+#include "project/tmp.hpp"
 
 int main()
 {

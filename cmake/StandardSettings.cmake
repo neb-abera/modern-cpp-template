@@ -10,7 +10,14 @@ option(${PROJECT_NAME}_USE_ALT_NAMES "Use alternative names for the project, suc
 # Compiler options
 #
 
-set(${PROJECT_NAME}_CXX_STANDARD 20 CACHE STRING "The C++ standard the project targets (17, 20 or 23).")
+# C++23 is the newest standard fully supported by CMake's compiler feature
+# detection across GCC, Clang and MSVC; bump to 26 once your toolchains and
+# CMake support it (`cxx_std_26`).
+set(${PROJECT_NAME}_CXX_STANDARD 23 CACHE STRING "The C++ standard the project targets (17, 20, 23 or 26).")
+
+# Use `-std=c++23` rather than `-std=gnu++23`: portable standard C++, no
+# compiler-specific extensions.
+set(CMAKE_CXX_EXTENSIONS OFF)
 option(${PROJECT_NAME}_WARNINGS_AS_ERRORS "Treat compiler warnings as errors." OFF)
 
 #

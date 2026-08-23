@@ -19,7 +19,7 @@ jobs:
     - uses: actions/checkout@v5
 
     - name: configure
-      run: cmake --preset release
+      run: cmake --preset release -DProject_WARNINGS_AS_ERRORS=ON
 
     - name: build
       run: cmake --build --preset release -j 4
@@ -29,6 +29,22 @@ jobs:
 
     - name: install project
       run: cmake --install build/release --prefix "${{ github.workspace }}/.local" --config Release
+
+  sanitizers:
+    name: sanitizers (ASan + UBSan)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: configure
+      run: cmake --preset asan -DProject_WARNINGS_AS_ERRORS=ON
+
+    - name: build
+      run: cmake --build --preset asan -j 4
+
+    - name: run tests
+      run: ctest --preset asan
 
   coverage:
     name: coverage
@@ -53,3 +69,15 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+
+  format:
+    name: clang-format
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: check formatting
+      run: |
+        shopt -s nullglob globstar
+        clang-format --dry-run --Werror src/**/*.cpp include/**/*.hpp test/**/*.cpp
