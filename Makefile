@@ -1,4 +1,4 @@
-.PHONY: install coverage test asan verify docs format help
+.PHONY: install coverage test asan verify verify-docker docs format help
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -43,6 +43,9 @@ coverage: ## check code coverage with GCC/Clang
 
 verify: ## run the full verification suite with a pass/fail tally
 	./scripts/verify.sh
+
+verify-docker: ## run the full verification suite inside the Docker toolchain image
+	./scripts/verify-docker.sh
 
 asan: ## build and run tests under Address/UB sanitizers
 	cmake --preset asan

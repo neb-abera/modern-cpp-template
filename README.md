@@ -210,6 +210,16 @@ tally and a final summary:
 make verify        # or directly: ./scripts/verify.sh
 ```
 
+To run the same suite **inside a Docker container** — so results do not depend
+on the compilers, CMake or clang-format versions installed on your machine —
+use the project's toolchain image (built automatically from the
+[`Dockerfile`](Dockerfile) on first run; the source tree is mounted read-only,
+so your checkout is never touched):
+
+```bash
+make verify-docker # or directly: ./scripts/verify-docker.sh
+```
+
 ### End to end tests
 
 If applicable, should be presented here.

@@ -137,21 +137,27 @@ else
 fi
 
 banner "Mutation canary: do the tests catch a planted bug?"
-if ! git diff --quiet -- src/tmp.cpp; then
-  skip "Mutation canary (src/tmp.cpp has local edits; commit or stash them first)"
-else
-  perl -pi -e 's/return a \+ b;/return a - b;/' src/tmp.cpp
+# Back up and restore via a plain file copy, so this works in containers and
+# source exports where no git metadata is available.
+BACKUP="$(mktemp)"
+cp src/tmp.cpp "$BACKUP"
+restore_canary() { cp "$BACKUP" src/tmp.cpp; rm -f "$BACKUP"; }
+perl -pi -e 's/return a \+ b;/return a - b;/' src/tmp.cpp
+if ! cmp -s src/tmp.cpp "$BACKUP"; then
   cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1
   if ctest --preset release > "$LOG" 2>&1; then
-    git checkout -- src/tmp.cpp
+    restore_canary
     fail "Mutation canary (tests did NOT catch the planted bug!)"
   else
     caught=$(grep -Eo '[0-9]+ tests failed out of [0-9]+' "$LOG" | awk '{print $1}' | tail -1)
-    git checkout -- src/tmp.cpp
+    restore_canary
     cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1
     echo "planted 'a + b -> a - b'; $caught tests failed as they should, then restored"
     pass "Mutation canary: tests caught the planted bug ($caught failures)"
   fi
+else
+  restore_canary
+  skip "Mutation canary (could not plant the mutation; src/tmp.cpp changed?)"
 fi
 
 banner "clang-format check"
