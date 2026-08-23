@@ -1,0 +1,23 @@
+# Conan 2 manifest. Add your dependencies under [requires], e.g.:
+#
+#   [requires]
+#   fmt/11.2.0
+#
+# Then either use the cmake-conan dependency provider (no extra steps beyond
+# downloading https://github.com/conan-io/cmake-conan once):
+#
+#   cmake --preset release -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=/path/to/conan_provider.cmake
+#
+# or run Conan yourself and point CMake at the generated toolchain:
+#
+#   conan install . --build=missing
+#   cmake --preset release -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake
+
+[requires]
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout

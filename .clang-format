@@ -1,7 +1,7 @@
 ---
 BasedOnStyle: Google
 AlignAfterOpenBracket: 'AlwaysBreak'
-AllowAllConstructorInitializersOnNextLine: 'false'
+PackConstructorInitializers: NextLine
 AllowAllParametersOfDeclarationOnNextLine: 'false'
 AlignConsecutiveMacros: 'true'
 AllowShortCaseLabelsOnASingleLine: 'true'
