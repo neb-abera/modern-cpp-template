@@ -1,0 +1,4 @@
+{
+  "$comment": "vcpkg manifest. Add your dependencies here, then configure with the `vcpkg` CMake preset (requires the VCPKG_ROOT environment variable to point at a vcpkg checkout). See https://learn.microsoft.com/vcpkg/users/manifests",
+  "dependencies": []
+}

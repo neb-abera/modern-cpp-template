@@ -10,20 +10,16 @@ option(${PROJECT_NAME}_USE_ALT_NAMES "Use alternative names for the project, suc
 # Compiler options
 #
 
+set(${PROJECT_NAME}_CXX_STANDARD 20 CACHE STRING "The C++ standard the project targets (17, 20 or 23).")
 option(${PROJECT_NAME}_WARNINGS_AS_ERRORS "Treat compiler warnings as errors." OFF)
-
-#
-# Package managers
-#
-# Currently supporting: Conan, Vcpkg.
-
-option(${PROJECT_NAME}_ENABLE_CONAN "Enable the Conan package manager for this project." OFF)
-option(${PROJECT_NAME}_ENABLE_VCPKG "Enable the Vcpkg package manager for this project." OFF)
 
 #
 # Unit testing
 #
 # Currently supporting: GoogleTest, Catch2.
+#
+# The chosen framework is resolved with `find_package` first and fetched with
+# `FetchContent` when not installed, so no manual installation is required.
 
 option(${PROJECT_NAME}_ENABLE_UNIT_TESTING "Enable unit tests for the projects (from the `test` subfolder)." ON)
 
@@ -44,7 +40,11 @@ option(${PROJECT_NAME}_ENABLE_CPPCHECK "Enable static analysis with Cppcheck." O
 # Code coverage
 #
 
-option(${PROJECT_NAME}_ENABLE_CODE_COVERAGE "Enable code coverage through GCC." OFF)
+option(${PROJECT_NAME}_ENABLE_CODE_COVERAGE "Enable code coverage through GCC/Clang." OFF)
+if(${PROJECT_NAME}_ENABLE_CODE_COVERAGE)
+  add_compile_options(--coverage -O0 -g)
+  add_link_options(--coverage)
+endif()
 
 #
 # Doxygen
@@ -80,16 +80,31 @@ if(${PROJECT_NAME}_ENABLE_LTO)
   endif()
 endif()
 
-
 option(${PROJECT_NAME}_ENABLE_CCACHE "Enable the usage of Ccache, in order to speed up rebuild times." ON)
-find_program(CCACHE_FOUND ccache)
-if(CCACHE_FOUND)
-  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-  set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+if(${PROJECT_NAME}_ENABLE_CCACHE)
+  find_program(CCACHE_FOUND ccache)
+  if(CCACHE_FOUND)
+    set(CMAKE_C_COMPILER_LAUNCHER ccache)
+    set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
+  endif()
 endif()
 
-option(${PROJECT_NAME}_ENABLE_ASAN "Enable Address Sanitize to detect memory error." OFF)
+#
+# Sanitizers
+#
+
+option(${PROJECT_NAME}_ENABLE_ASAN "Enable AddressSanitizer to detect memory errors." OFF)
 if(${PROJECT_NAME}_ENABLE_ASAN)
-    add_compile_options(-fsanitize=address)
+  if(MSVC)
+    add_compile_options(/fsanitize=address)
+  else()
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)
+  endif()
+endif()
+
+option(${PROJECT_NAME}_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer to detect undefined behavior (GCC/Clang only)." OFF)
+if(${PROJECT_NAME}_ENABLE_UBSAN AND NOT MSVC)
+  add_compile_options(-fsanitize=undefined)
+  add_link_options(-fsanitize=undefined)
 endif()

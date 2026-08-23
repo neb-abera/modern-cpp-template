@@ -1,4 +1,4 @@
-.PHONY: install coverage test docs help
+.PHONY: install coverage test asan docs format help
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -24,40 +24,39 @@ for line in sys.stdin:
 endef
 export PRINT_HELP_PYSCRIPT
 
-BROWSER := python -c "$$BROWSER_PYSCRIPT"
+BROWSER := python3 -c "$$BROWSER_PYSCRIPT"
 INSTALL_LOCATION := ~/.local
 
 help:
-	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
+	@python3 -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
-test: ## run tests quickly with ctest
-	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Dmodern-cpp-template_ENABLE_UNIT_TESTING=1 -DCMAKE_BUILD_TYPE="Release"
-	cmake --build build --config Release
-	cd build/ && ctest -C Release -VV
+test: ## build and run tests with ctest
+	cmake --preset release
+	cmake --build --preset release
+	ctest --preset release
 
-coverage: ## check code coverage quickly GCC
-	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Dmodern-cpp-template_ENABLE_CODE_COVERAGE=1
-	cmake --build build --config Release
-	cd build/ && ctest -C Release -VV
-	cd .. && (bash -c "find . -type f -name '*.gcno' -exec gcov -pb {} +" || true)
+coverage: ## check code coverage with GCC/Clang
+	cmake --preset coverage
+	cmake --build --preset coverage
+	ctest --preset coverage
+	find build/coverage -type f -name '*.gcno' -exec gcov -pb {} +
+
+asan: ## build and run tests under Address/UB sanitizers
+	cmake --preset asan
+	cmake --build --preset asan
+	ctest --preset asan
 
 docs: ## generate Doxygen HTML documentation, including API docs
 	rm -rf docs/
-	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -DProject_ENABLE_DOXYGEN=1
-	cmake --build build --config Release
-	cmake --build build --target doxygen-docs
+	cmake --preset release -DProject_ENABLE_DOXYGEN=1
+	cmake --build --preset release --target doxygen-docs
 	$(BROWSER) docs/html/index.html
 
 install: ## install the package to the `INSTALL_LOCATION`
-	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION)
-	cmake --build build --config Release
-	cmake --build build --target install --config Release
+	cmake --preset release
+	cmake --build --preset release
+	cmake --install build/release --prefix $(INSTALL_LOCATION)
 
 format: ## format the project sources
-	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION)
-	cmake --build build --target clang-format
+	cmake --preset release
+	cmake --build --preset release --target clang-format
