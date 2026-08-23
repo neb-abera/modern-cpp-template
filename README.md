@@ -200,6 +200,16 @@ To run the tests, use CTest through the matching test preset:
 ctest --preset release
 ```
 
+To run the **full verification suite** — clean release build with
+warnings-as-errors, tests under sanitizers, strict-standard-mode check,
+executable smoke test, install-tree purity, a mutation canary proving the
+tests catch planted bugs, and a clang-format check — with a running pass/fail
+tally and a final summary:
+
+```bash
+make verify        # or directly: ./scripts/verify.sh
+```
+
 ### End to end tests
 
 If applicable, should be presented here.

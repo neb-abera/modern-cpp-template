@@ -1,4 +1,4 @@
-.PHONY: install coverage test asan docs format help
+.PHONY: install coverage test asan verify docs format help
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -40,6 +40,9 @@ coverage: ## check code coverage with GCC/Clang
 	cmake --build --preset coverage
 	ctest --preset coverage
 	find build/coverage -type f -name '*.gcno' -exec gcov -pb {} +
+
+verify: ## run the full verification suite with a pass/fail tally
+	./scripts/verify.sh
 
 asan: ## build and run tests under Address/UB sanitizers
 	cmake --preset asan
