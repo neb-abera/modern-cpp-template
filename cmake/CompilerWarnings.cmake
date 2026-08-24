@@ -87,10 +87,12 @@ function(set_project_warnings project_name)
     message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
   endif()
 
+  # Warnings are PRIVATE: they apply when building this project, but are not
+  # forced onto consumers of the installed/exported targets.
   if(${PROJECT_NAME}_BUILD_HEADERS_ONLY)
-        target_compile_options(${project_name} INTERFACE ${PROJECT_WARNINGS})
+        target_compile_options(${project_name} INTERFACE $<BUILD_INTERFACE:${PROJECT_WARNINGS}>)
   else()
-        target_compile_options(${project_name} PUBLIC ${PROJECT_WARNINGS})
+        target_compile_options(${project_name} PRIVATE ${PROJECT_WARNINGS})
   endif()
 
   if(NOT TARGET ${project_name})

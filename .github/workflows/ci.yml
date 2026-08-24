@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v7
+
+    # The default GCC on the ubuntu-latest runner (24.04) is 13, which
+    # predates C++26; GCC 14+ supports it.
+    - name: select GCC 14 (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update && sudo apt-get install -y g++-14
+        echo "CC=gcc-14" >> "$GITHUB_ENV"
+        echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+    - name: configure
+      run: cmake --preset release -DProject_WARNINGS_AS_ERRORS=ON
+
+    - name: build
+      run: cmake --build --preset release -j 4
+
+    - name: run tests
+      run: ctest --preset release
+
+    - name: install project
+      run: cmake --install build/release --prefix "${{ github.workspace }}/.local" --config Release
+
+  sanitizers:
+    name: sanitizers (ASan + UBSan)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: select GCC 14
+      run: |
+        sudo apt-get update && sudo apt-get install -y g++-14
+        echo "CC=gcc-14" >> "$GITHUB_ENV"
+        echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+    - name: configure
+      run: cmake --preset asan -DProject_WARNINGS_AS_ERRORS=ON
+
+    - name: build
+      run: cmake --build --preset asan -j 4
+
+    - name: run tests
+      run: ctest --preset asan
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: select GCC 14
+      run: |
+        sudo apt-get update && sudo apt-get install -y g++-14
+        echo "CC=gcc-14" >> "$GITHUB_ENV"
+        echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+    - name: configure
+      run: cmake --preset coverage
+
+    - name: build
+      run: cmake --build --preset coverage -j 4
+
+    - name: run tests
+      run: ctest --preset coverage
+
+    - name: generate coverage data
+      run: find build/coverage -type f -name '*.gcno' -exec gcov-14 -pb {} +
+
+    - name: upload coverage to Codecov
+      uses: codecov/codecov-action@v7
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+  format:
+    name: clang-format
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: check formatting
+      run: |
+        shopt -s nullglob globstar
+        clang-format --dry-run --Werror src/**/*.cpp include/**/*.hpp test/**/*.cpp
