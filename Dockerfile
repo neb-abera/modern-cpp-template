@@ -1,9 +1,10 @@
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
-# Base toolchain. Ubuntu 24.04 ships CMake 3.28, which satisfies the
-# project's 3.28 minimum, so no manual CMake install is needed. The unit
-# testing frameworks (GoogleTest/Catch2) are fetched automatically by CMake
-# via FetchContent, so they are not installed here either.
+# Base toolchain. Ubuntu 26.04 LTS ships GCC 15 (full C++26 support),
+# CMake 4.2 and the LLVM 21 tools, all well above the project's minimums,
+# so no manual installs are needed. The unit testing frameworks
+# (GoogleTest/Catch2) are fetched automatically by CMake via FetchContent,
+# so they are not installed here either.
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         build-essential \

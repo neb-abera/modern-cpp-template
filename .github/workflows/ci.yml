@@ -16,7 +16,16 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
+
+    # The default GCC on the ubuntu-latest runner (24.04) is 13, which
+    # predates C++26; GCC 14+ supports it.
+    - name: select GCC 14 (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update && sudo apt-get install -y g++-14
+        echo "CC=gcc-14" >> "$GITHUB_ENV"
+        echo "CXX=g++-14" >> "$GITHUB_ENV"
 
     - name: configure
       run: cmake --preset release -DProject_WARNINGS_AS_ERRORS=ON
@@ -35,7 +44,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
+
+    - name: select GCC 14
+      run: |
+        sudo apt-get update && sudo apt-get install -y g++-14
+        echo "CC=gcc-14" >> "$GITHUB_ENV"
+        echo "CXX=g++-14" >> "$GITHUB_ENV"
 
     - name: configure
       run: cmake --preset asan -DProject_WARNINGS_AS_ERRORS=ON
@@ -51,7 +66,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
+
+    - name: select GCC 14
+      run: |
+        sudo apt-get update && sudo apt-get install -y g++-14
+        echo "CC=gcc-14" >> "$GITHUB_ENV"
+        echo "CXX=g++-14" >> "$GITHUB_ENV"
 
     - name: configure
       run: cmake --preset coverage
@@ -63,10 +84,10 @@ jobs:
       run: ctest --preset coverage
 
     - name: generate coverage data
-      run: find build/coverage -type f -name '*.gcno' -exec gcov -pb {} +
+      run: find build/coverage -type f -name '*.gcno' -exec gcov-14 -pb {} +
 
     - name: upload coverage to Codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -75,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: check formatting
       run: |
