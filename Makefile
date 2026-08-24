@@ -1,4 +1,4 @@
-.PHONY: install coverage test asan verify verify-docker docs format help
+.PHONY: install coverage test asan verify verify-docker shell docs format help
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -46,6 +46,11 @@ verify: ## run the full verification suite with a pass/fail tally
 
 verify-docker: ## run the full verification suite inside the Docker toolchain image
 	./scripts/verify-docker.sh
+
+shell: ## open a development shell inside the Docker toolchain image
+	docker build -t modern-cpp-template:latest .
+	docker rm -f mct-dev 2>/dev/null || true
+	docker run --rm -it --name mct-dev -v $(CURDIR):/work -w /work modern-cpp-template:latest bash
 
 asan: ## build and run tests under Address/UB sanitizers
 	cmake --preset asan

@@ -54,6 +54,12 @@ job** — so a green run means the change built cleanly, passed every test
 automated **release workflow** packages the install tree for all three
 platforms and publishes a GitHub Release on tags,
 
+* **Dockerized development environment** — a toolchain image pinning every
+compiler and tool the project uses, with `make shell` for day-to-day
+development inside the container and `make verify-docker` for a full
+host-independent verification run, eliminating dependency drift between
+developer machines and deployment servers,
+
 * **.md templates** for: *README*, *Contributing Guideliness*,
 *Issues* and *Pull Requests*,
 
@@ -72,9 +78,17 @@ machine for development and testing purposes.
 
 ### Prerequisites
 
-This project is meant to be only a template, thus versions of the software used
-can be change to better suit the needs of the developer(s). If you wish to use the
-template *as-is*, meaning using the versions recommended here, then you will need:
+**The intended development environment is the project's Docker container.**
+Every tool the project needs — GCC and Clang, CMake, clang-format, clang-tidy,
+cppcheck, Doxygen, ccache, Conan 2 and vcpkg — is pinned in the
+[`Dockerfile`](Dockerfile), so every developer (and CI) builds with the same
+toolchain and "works on my machine" dependency drift between workstations and
+deployment servers disappears. For that workflow you only need:
+
+* **Docker** - found at [https://www.docker.com/](https://www.docker.com/)
+* **git**
+
+If you prefer to develop directly on your machine instead, you will need:
 
 * **CMake v3.28+** - found at [https://cmake.org/](https://cmake.org/)
 
@@ -139,8 +153,36 @@ cmake --install build/release --prefix /absolute/path/to/custom/install/director
 
 ## Building the project
 
+### In Docker (recommended)
+
+Open a development shell inside the toolchain container — the image is built
+automatically the first time (cached afterwards) and your checkout is mounted
+at `/work`, so you edit files on your machine with your normal editor and
+build/test inside the container:
+
+```bash
+make shell
+```
+
+Everything below (presets, tests, docs, verification) works identically inside
+that shell. The container is removed when you exit; only the image persists.
+
+> ***Note:*** *Don't mix host builds and container builds in the same `build/`
+directory — the CMake cache records absolute compiler paths. If you switch
+between the two, `rm -rf build/` first.*
+
+You can also run the full verification suite non-interactively in a fresh
+container (source mounted read-only, checkout never touched):
+
+```bash
+make verify-docker
+```
+
+### The build itself
+
 The project ships with [CMake presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html),
-so building is the same everywhere:
+so building is the same everywhere — inside the container or on a host with
+the prerequisites installed:
 
 ```bash
 cmake --preset release        # configure (see `cmake --list-presets` for more)
