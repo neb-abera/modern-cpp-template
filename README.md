@@ -92,9 +92,11 @@ If you prefer to develop directly on your machine instead, you will need:
 
 * **CMake v3.28+** - found at [https://cmake.org/](https://cmake.org/)
 
-* **C++ Compiler** - needs to support at least the **C++26** standard: **GCC 14+**, **Clang 17+**, or a current **MSVC** (which builds C++26 as `/std:c++latest`)
-(the standard can be lowered to C++17/20/23 through the
-`<project_name>_CXX_STANDARD` option)
+* **C++ Compiler** - **GCC 14+** or **Clang 17+** for the default **C++26**
+target. **MSVC** is supported too: it has no C++26 mode yet, so the build
+automatically uses its newest mode (`/std:c++latest`) on that compiler.
+(The standard can be lowered to C++17/20/23 through the
+`<project_name>_CXX_STANDARD` option.)
 
 > ***Note:*** *You also need to be able to provide ***CMake*** a supported
 [generator](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html).*
