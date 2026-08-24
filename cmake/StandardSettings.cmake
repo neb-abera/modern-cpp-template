@@ -10,10 +10,18 @@ option(${PROJECT_NAME}_USE_ALT_NAMES "Use alternative names for the project, suc
 # Compiler options
 #
 
-# C++26 needs GCC 14+, Clang 17+ (as -std=c++2c) or a current MSVC (as
-# /std:c++latest); the project's Docker image ships GCC 15. Lower this if a
-# toolchain you must support cannot handle it.
+# C++26 needs GCC 14+ or Clang 17+; the project's Docker image ships GCC 15.
+# Lower this if a toolchain you must support cannot handle it.
 set(${PROJECT_NAME}_CXX_STANDARD 26 CACHE STRING "The C++ standard the project targets (17, 20, 23 or 26).")
+
+# MSVC does not yet expose a C++26 standard mode CMake can request
+# (`cxx_std_26` is unknown for it); its newest mode, /std:c++latest, is
+# reached via cxx_std_23. Clamp on MSVC only, so GCC/Clang still get C++26.
+# Remove this block once MSVC and CMake support cxx_std_26.
+if(MSVC AND ${PROJECT_NAME}_CXX_STANDARD GREATER 23)
+  message(STATUS "MSVC has no C++26 mode yet; using cxx_std_23 (/std:c++latest) on this compiler instead.")
+  set(${PROJECT_NAME}_CXX_STANDARD 23)
+endif()
 
 # Use `-std=c++23` rather than `-std=gnu++23`: portable standard C++, no
 # compiler-specific extensions.
