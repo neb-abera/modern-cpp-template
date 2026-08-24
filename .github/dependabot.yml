@@ -1,0 +1,14 @@
+# Keeps the SHA-pinned GitHub Actions and the Docker base image current.
+# Dependabot PRs update the pinned SHA and the version comment together, so
+# supply-chain pinning and staying on the latest versions are compatible.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
