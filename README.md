@@ -14,7 +14,7 @@ is greatly appreciated!
 ## Features
 
 * Modern **CMake** configuration and project, which, to the best of my
-knowledge, uses the best practices — targets C++23 by default — the latest standard fully supported across GCC, Clang and MSVC (configurable
+knowledge, uses the best practices — targets C++26 by default (configurable
 through the `CXX_STANDARD` option) and installs headers through CMake
 [file sets](https://cmake.org/cmake/help/latest/command/target_sources.html),
 
@@ -79,7 +79,7 @@ machine for development and testing purposes.
 ### Prerequisites
 
 **The intended development environment is the project's Docker container.**
-Every tool the project needs — GCC and Clang, CMake, clang-format, clang-tidy,
+Every tool the project needs — GCC 15 and Clang 21, CMake 4.2, clang-format, clang-tidy,
 cppcheck, Doxygen, ccache, Conan 2 and vcpkg — is pinned in the
 [`Dockerfile`](Dockerfile), so every developer (and CI) builds with the same
 toolchain and "works on my machine" dependency drift between workstations and
@@ -92,8 +92,8 @@ If you prefer to develop directly on your machine instead, you will need:
 
 * **CMake v3.28+** - found at [https://cmake.org/](https://cmake.org/)
 
-* **C++ Compiler** - needs to support at least the **C++23** standard, i.e.
-*MSVC*, *GCC*, *Clang* (the standard can be lowered to C++17/20 through the
+* **C++ Compiler** - needs to support at least the **C++26** standard: **GCC 14+**, **Clang 17+**, or a current **MSVC** (which builds C++26 as `/std:c++latest`)
+(the standard can be lowered to C++17/20/23 through the
 `<project_name>_CXX_STANDARD` option)
 
 > ***Note:*** *You also need to be able to provide ***CMake*** a supported
