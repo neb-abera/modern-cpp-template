@@ -10,10 +10,10 @@ option(${PROJECT_NAME}_USE_ALT_NAMES "Use alternative names for the project, suc
 # Compiler options
 #
 
-# C++23 is the newest standard fully supported by CMake's compiler feature
-# detection across GCC, Clang and MSVC; bump to 26 once your toolchains and
-# CMake support it (`cxx_std_26`).
-set(${PROJECT_NAME}_CXX_STANDARD 23 CACHE STRING "The C++ standard the project targets (17, 20, 23 or 26).")
+# C++26 needs GCC 14+, Clang 17+ (as -std=c++2c) or a current MSVC (as
+# /std:c++latest); the project's Docker image ships GCC 15. Lower this if a
+# toolchain you must support cannot handle it.
+set(${PROJECT_NAME}_CXX_STANDARD 26 CACHE STRING "The C++ standard the project targets (17, 20, 23 or 26).")
 
 # Use `-std=c++23` rather than `-std=gnu++23`: portable standard C++, no
 # compiler-specific extensions.
