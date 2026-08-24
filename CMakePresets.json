@@ -1,0 +1,76 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "coverage",
+      "displayName": "Coverage (GCC/Clang)",
+      "inherits": "debug",
+      "cacheVariables": {
+        "Project_ENABLE_CODE_COVERAGE": "ON"
+      }
+    },
+    {
+      "name": "asan",
+      "displayName": "AddressSanitizer",
+      "inherits": "debug",
+      "cacheVariables": {
+        "Project_ENABLE_ASAN": "ON",
+        "Project_ENABLE_UBSAN": "ON"
+      }
+    },
+    {
+      "name": "vcpkg",
+      "displayName": "Release + vcpkg (manifest mode)",
+      "inherits": "release",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug", "configuration": "Debug" },
+    { "name": "release", "configurePreset": "release", "configuration": "Release" },
+    { "name": "coverage", "configurePreset": "coverage", "configuration": "Debug" },
+    { "name": "asan", "configurePreset": "asan", "configuration": "Debug" },
+    { "name": "vcpkg", "configurePreset": "vcpkg", "configuration": "Release" }
+  ],
+  "testPresets": [
+    {
+      "name": "base-test",
+      "hidden": true,
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
+    },
+    { "name": "debug", "inherits": "base-test", "configurePreset": "debug", "configuration": "Debug" },
+    { "name": "release", "inherits": "base-test", "configurePreset": "release", "configuration": "Release" },
+    { "name": "coverage", "inherits": "base-test", "configurePreset": "coverage", "configuration": "Debug" },
+    { "name": "asan", "inherits": "base-test", "configurePreset": "asan", "configuration": "Debug" }
+  ]
+}

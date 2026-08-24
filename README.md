@@ -1,10 +1,8 @@
-[![Actions Status](https://github.com/neb-abera/modern-cpp-template/workflows/MacOS/badge.svg)](https://github.com/neb-abera/modern-cpp-template/actions)
-[![Actions Status](https://github.com/neb-abera/modern-cpp-template/workflows/Windows/badge.svg)](https://github.com/neb-abera/modern-cpp-template/actions)
-[![Actions Status](https://github.com/neb-abera/modern-cpp-template/workflows/Ubuntu/badge.svg)](https://github.com/neb-abera/modern-cpp-template/actions)
+[![Actions Status](https://github.com/neb-abera/modern-cpp-template/workflows/CI/badge.svg)](https://github.com/neb-abera/modern-cpp-template/actions)
 
 # Modern C++ Template
 
-This is a modified version of [filipdutescu's modern-cpp-template](https://github.com/filipdutescu/modern-cpp-template/tree/master). 
+This is a modified version of [filipdutescu's modern-cpp-template](https://github.com/filipdutescu/modern-cpp-template/tree/master).
 
 A quick C++ template for modern CMake projects, aimed to be an easy to use
 starting point.
@@ -16,7 +14,13 @@ is greatly appreciated!
 ## Features
 
 * Modern **CMake** configuration and project, which, to the best of my
-knowledge, uses the best practices,
+knowledge, uses the best practices — targets C++26 by default (configurable
+through the `CXX_STANDARD` option) and installs headers through CMake
+[file sets](https://cmake.org/cmake/help/latest/command/target_sources.html),
+
+* **CMake Presets** (`CMakePresets.json`) providing `debug`, `release`,
+`coverage`, `asan` (Address + UB sanitizers) and `vcpkg` configurations, so
+building is a consistent `cmake --preset <name>` on every platform and in CI,
 
 * An example of a **Clang-Format** config, inspired from the base *Google* model,
 with minor tweaks. This is aimed only as a starting point, as coding style
@@ -30,16 +34,31 @@ being the default option,
 if you wish to use it,
 
 * **Unit testing** support, through *GoogleTest* (with an option to enable
-*GoogleMock*) or *Catch2*,
+*GoogleMock*) or *Catch2 v3*. The framework is resolved automatically: a
+system-installed copy is used when found, and otherwise it is fetched at
+configure time with `FetchContent` — no manual installation needed, locally
+or in CI. Individual test cases are registered with CTest via
+`gtest_discover_tests`/`catch_discover_tests`,
 
-* **Code coverage**, enabled by using the `ENABLE_CODE_COVERAGE` option, through
-*Codecov* CI integration,
+* **Code coverage**, enabled by using the `coverage` preset (or the
+`ENABLE_CODE_COVERAGE` option), uploaded through the *Codecov* CI integration,
 
-* **Package manager support**, with *Conan* and *Vcpkg*, through their respective
-options
+* **Package manager support**, with *vcpkg* (manifest mode, see `vcpkg.json`)
+and *Conan 2* (see `conanfile.txt`),
 
-* **CI workflows for Windows, Linux and MacOS** using *GitHub Actions*, making
-use of the caching features, to ensure minimum run time,
+* **CI workflows for Windows, Linux and macOS** as a single matrix using
+*GitHub Actions*, with builds treating **warnings as errors**, a dedicated
+**ASan + UBSan sanitizer job**, a **clang-format check**, and a **coverage
+job** — so a green run means the change built cleanly, passed every test
+(including under sanitizers) and is formatted, before it can merge. An
+automated **release workflow** packages the install tree for all three
+platforms and publishes a GitHub Release on tags,
+
+* **Dockerized development environment** — a toolchain image pinning every
+compiler and tool the project uses, with `make shell` for day-to-day
+development inside the container and `make verify-docker` for a full
+host-independent verification run, eliminating dependency drift between
+developer machines and deployment servers,
 
 * **.md templates** for: *README*, *Contributing Guideliness*,
 *Issues* and *Pull Requests*,
@@ -48,9 +67,9 @@ use of the caching features, to ensure minimum run time,
 template is licensed under the [Unlicense](https://unlicense.org/),
 
 * Options to build as a header-only library or executable, not just a static or
-shared library.
+shared library,
 
-* **Ccache** integration, for speeding up rebuild times
+* **Ccache** integration, for speeding up rebuild times.
 
 ## Getting Started
 
@@ -59,14 +78,25 @@ machine for development and testing purposes.
 
 ### Prerequisites
 
-This project is meant to be only a template, thus versions of the software used
-can be change to better suit the needs of the developer(s). If you wish to use the
-template *as-is*, meaning using the versions recommended here, then you will need:
+**The intended development environment is the project's Docker container.**
+Every tool the project needs — GCC 15 and Clang 21, CMake 4.2, clang-format, clang-tidy,
+cppcheck, Doxygen, ccache, Conan 2 and vcpkg — is pinned in the
+[`Dockerfile`](Dockerfile), so every developer (and CI) builds with the same
+toolchain and "works on my machine" dependency drift between workstations and
+deployment servers disappears. For that workflow you only need:
 
-* **CMake v3.15+** - found at [https://cmake.org/](https://cmake.org/)
+* **Docker** - found at [https://www.docker.com/](https://www.docker.com/)
+* **git**
 
-* **C++ Compiler** - needs to support at least the **C++17** standard, i.e. *MSVC*,
-*GCC*, *Clang*
+If you prefer to develop directly on your machine instead, you will need:
+
+* **CMake v3.28+** - found at [https://cmake.org/](https://cmake.org/)
+
+* **C++ Compiler** - **GCC 14+** or **Clang 17+** for the default **C++26**
+target. **MSVC** is supported too: it has no C++26 mode yet, so the build
+automatically uses its newest mode (`/std:c++latest`) on that compiler.
+(The standard can be lowered to C++17/20/23 through the
+`<project_name>_CXX_STANDARD` option.)
 
 > ***Note:*** *You also need to be able to provide ***CMake*** a supported
 [generator](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html).*
@@ -74,15 +104,15 @@ template *as-is*, meaning using the versions recommended here, then you will nee
 ### Installing
 
 It is fairly easy to install the project, all you need to do is clone if from
-[GitHub](https://github.com/filipdutescu/modern-cpp-template) or
-[generate a new repository from it](https://github.com/filipdutescu/modern-cpp-template/generate)
+[GitHub](https://github.com/neb-abera/modern-cpp-template) or
+[generate a new repository from it](https://github.com/neb-abera/modern-cpp-template/generate)
 (also on **GitHub**).
 
 If you wish to clone the repository, rather than generate from it, you simply need
 to run:
 
 ```bash
-git clone https://github.com/filipdutescu/modern-cpp-template/
+git clone https://github.com/neb-abera/modern-cpp-template/
 ```
 
 After finishing getting a copy of the project, with any of the methods above, create
@@ -91,10 +121,6 @@ a new folder in the `include/` folder, with the name of your project.  Edit
 
 You will also need to rename the `cmake/ProjectConfig.cmake.in` file to start with
 the ***exact name of your project***. Such as `cmake/MyNewProjectConfig.cmake.in`.
-You should also make the same changes in the GitHub workflows provided, notably
-[`.github/workflows/ubuntu.yml`](.github/workflows/ubuntu.yml), in which you should
-replace the CMake option `-DProject_ENABLE_CODE_COVERAGE=1` to
-`-DMyNewProject_ENABLE_CODE_COVERAGE=1`.
 
 Finally, change `"Project"` from `CMakeLists.txt`, from
 
@@ -116,36 +142,80 @@ project(
 )
 ```
 
-To install an already built project, you need to run the `install` target with CMake.
-For example:
+Project options are prefixed with the project name (i.e.
+`MyNewProject_ENABLE_ASAN`), so after renaming you should also update the
+`Project_*` cache variables referenced in `CMakePresets.json` and the `docs`
+target in the `Makefile`.
+
+To install an already built project, you need to run:
 
 ```bash
-cmake --build build --target install --config Release
-
-# a more general syntax for that command is:
-cmake --build <build_directory> --target install --config <desired_config>
+cmake --install build/release --prefix /absolute/path/to/custom/install/directory
 ```
 
 ## Building the project
 
-To build the project, all you need to do, ***after correctly
-[installing the project](README.md#Installing)***, is run a similar **CMake** routine
-to the the one below:
+### In Docker (recommended)
+
+Open a development shell inside the toolchain container — the image is built
+automatically the first time (cached afterwards) and your checkout is mounted
+at `/work`, so you edit files on your machine with your normal editor and
+build/test inside the container:
 
 ```bash
-mkdir build/ && cd build/
-cmake .. -DCMAKE_INSTALL_PREFIX=/absolute/path/to/custom/install/directory
-cmake --build . --target install
+make shell
 ```
 
-> ***Note:*** *The custom ``CMAKE_INSTALL_PREFIX`` can be omitted if you wish to
-install in [the default install location](https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html).*
+Everything below (presets, tests, docs, verification) works identically inside
+that shell. The container is removed when you exit; only the image persists.
+
+> ***Note:*** *Don't mix host builds and container builds in the same `build/`
+directory — the CMake cache records absolute compiler paths. If you switch
+between the two, `rm -rf build/` first.*
+
+You can also run the full verification suite non-interactively in a fresh
+container (source mounted read-only, checkout never touched):
+
+```bash
+make verify-docker
+```
+
+### The build itself
+
+The project ships with [CMake presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html),
+so building is the same everywhere — inside the container or on a host with
+the prerequisites installed:
+
+```bash
+cmake --preset release        # configure (see `cmake --list-presets` for more)
+cmake --build --preset release
+```
+
+Available configure presets are `debug`, `release`, `coverage`, `asan` and
+`vcpkg`; each writes its build tree to `build/<preset>`. You can still use the
+classic `cmake -B build ...` workflow if you prefer, and personal overrides
+belong in a (git-ignored) `CMakeUserPresets.json`.
 
 More options that you can set for the project can be found in the
-[`cmake/StandardSettings.cmake` file](cmake/StandardSettings.cmake). For certain
-options additional configuration may be needed in their respective `*.cmake` files
-(i.e. Conan needs the `CONAN_REQUIRES` and might need the `CONAN_OPTIONS` to be setup
-for it work correctly; the two are set in the [`cmake/Conan.cmake` file](cmake/Conan.cmake)).
+[`cmake/StandardSettings.cmake` file](cmake/StandardSettings.cmake).
+
+### Dependencies (package managers)
+
+Dependencies can be consumed through either of two package managers, both using
+the standard `find_package`/`target_link_libraries` flow in `CMakeLists.txt`:
+
+* **vcpkg (manifest mode):** add your dependencies to [`vcpkg.json`](vcpkg.json),
+set the `VCPKG_ROOT` environment variable to your [vcpkg](https://github.com/microsoft/vcpkg)
+checkout and configure with the `vcpkg` preset:
+
+```bash
+cmake --preset vcpkg
+```
+
+* **Conan 2:** add your dependencies to [`conanfile.txt`](conanfile.txt), then
+either use the [cmake-conan](https://github.com/conan-io/cmake-conan) dependency
+provider or run `conan install` yourself — both are documented at the top of
+`conanfile.txt`.
 
 ## Generating the documentation
 
@@ -153,28 +223,45 @@ In order to generate documentation for the project, you need to configure the bu
 to use Doxygen. This is easily done, by modifying the workflow shown above as follows:
 
 ```bash
-mkdir build/ && cd build/
-cmake .. -D<project_name>_ENABLE_DOXYGEN=1 -DCMAKE_INSTALL_PREFIX=/absolute/path/to/custom/install/directory
-cmake --build . --target doxygen-docs
+cmake --preset release -D<project_name>_ENABLE_DOXYGEN=1
+cmake --build --preset release --target doxygen-docs
 ```
 
 > ***Note:*** *This will generate a `docs/` directory in the **project's root directory**.*
 
 ## Running the tests
 
-By default, the template uses [Google Test](https://github.com/google/googletest/)
-for unit testing. Unit testing can be disabled in the options, by setting the
-`ENABLE_UNIT_TESTING` (from
-[cmake/StandardSettings.cmake](cmake/StandardSettings.cmake)) to be false. To run
-the tests, simply use CTest, from the build directory, passing the desire
-configuration for which to run tests for. An example of this procedure is:
+By default, the template uses [GoogleTest](https://github.com/google/googletest/)
+for unit testing (with [Catch2 v3](https://github.com/catchorg/Catch2) available
+through the `USE_CATCH2` option). The framework is downloaded automatically at
+configure time if it is not already installed. Unit testing can be disabled in
+the options, by setting the `ENABLE_UNIT_TESTING` option (from
+[cmake/StandardSettings.cmake](cmake/StandardSettings.cmake)) to false.
+
+To run the tests, use CTest through the matching test preset:
 
 ```bash
-cd build          # if not in the build directory already
-ctest -C Release  # or `ctest -C Debug` or any other configuration you wish to test
+ctest --preset release
+```
 
-# you can also run tests with the `-VV` flag for a more verbose output (i.e.
-#GoogleTest output as well)
+To run the **full verification suite** — clean release build with
+warnings-as-errors, tests under sanitizers, strict-standard-mode check,
+executable smoke test, install-tree purity, a mutation canary proving the
+tests catch planted bugs, and a clang-format check — with a running pass/fail
+tally and a final summary:
+
+```bash
+make verify        # or directly: ./scripts/verify.sh
+```
+
+To run the same suite **inside a Docker container** — so results do not depend
+on the compilers, CMake or clang-format versions installed on your machine —
+use the project's toolchain image (built automatically from the
+[`Dockerfile`](Dockerfile) on first run; the source tree is mounted read-only,
+so your checkout is never touched):
+
+```bash
+make verify-docker # or directly: ./scripts/verify-docker.sh
 ```
 
 ### End to end tests
@@ -194,7 +281,9 @@ become a contributor and the process for submitting pull requests to us.
 
 This project makes use of [SemVer](http://semver.org/) for versioning. A list of
 existing versions can be found in the
-[project's releases](https://github.com/filipdutescu/modern-cpp-template/releases).
+[project's releases](https://github.com/neb-abera/modern-cpp-template/releases).
+Pushing a `v*` tag triggers the release workflow, which builds and tests on all
+three platforms and publishes packaged install trees to a GitHub Release.
 
 ## Authors
 
