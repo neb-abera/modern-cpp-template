@@ -25,7 +25,8 @@ if(${CMAKE_PROJECT_NAME}_USE_GTEST)
   FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.18.0
+    # v1.18.0, pinned to its commit SHA: release tags are mutable
+    GIT_TAG 063de7e9578f82b369302001269680b4b1553359
     SYSTEM
     EXCLUDE_FROM_ALL
     FIND_PACKAGE_ARGS NAMES GTest
@@ -47,7 +48,8 @@ elseif(${CMAKE_PROJECT_NAME}_USE_CATCH2)
   FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG v3.15.3
+    # v3.15.3, pinned to its commit SHA: release tags are mutable
+    GIT_TAG 8b08d4d79514f45f7e4ce2a607ac9c94e920d1bb
     SYSTEM
     EXCLUDE_FROM_ALL
     FIND_PACKAGE_ARGS
