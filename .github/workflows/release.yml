@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 env:
-  PROJECT_NAME: "modern-cpp-template"
+  PROJECT_NAME: ${{ github.event.repository.name }}
 
 jobs:
   build:

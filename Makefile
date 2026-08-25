@@ -26,6 +26,9 @@ export PRINT_HELP_PYSCRIPT
 
 BROWSER := python3 -c "$$BROWSER_PYSCRIPT"
 INSTALL_LOCATION := ~/.local
+# Docker image/container names derive from the checkout directory, so
+# projects generated from this template need no edits here.
+IMAGE := $(shell basename "$(CURDIR)" | tr '[:upper:]' '[:lower:]')
 
 help:
 	@python3 -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
@@ -48,9 +51,9 @@ verify-docker: ## run the full verification suite inside the Docker toolchain im
 	./scripts/verify-docker.sh
 
 shell: ## open a development shell inside the Docker toolchain image
-	docker build -t modern-cpp-template:latest .
-	docker rm -f mct-dev 2>/dev/null || true
-	docker run --rm -it --name mct-dev -v $(CURDIR):/work -w /work modern-cpp-template:latest bash
+	docker build -t $(IMAGE):latest .
+	docker rm -f $(IMAGE)-dev 2>/dev/null || true
+	docker run --rm -it --name $(IMAGE)-dev -v $(CURDIR):/work -w /work $(IMAGE):latest bash
 
 asan: ## build and run tests under Address/UB sanitizers
 	cmake --preset asan

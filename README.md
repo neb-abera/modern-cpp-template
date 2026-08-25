@@ -147,6 +147,12 @@ Project options are prefixed with the project name (i.e.
 `Project_*` cache variables referenced in `CMakePresets.json` and the `docs`
 target in the `Makefile`.
 
+Finally, make the README yours: replace the badge and repository URLs at the
+top and in this section with your own repository's, and rewrite the
+description. Everything else adapts automatically — the release workflow
+names artifacts after your repository, and the Docker image/container names
+derive from your checkout directory.
+
 To install an already built project, you need to run:
 
 ```bash
