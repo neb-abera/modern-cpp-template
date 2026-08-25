@@ -12,8 +12,11 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-IMAGE="modern-cpp-template:latest"
-CONTAINER="mct-verify"
+# Image/container names derive from the checkout directory, so projects
+# generated from this template need no edits here.
+NAME="$(basename "$PWD" | tr '[:upper:]' '[:lower:]')"
+IMAGE="$NAME:latest"
+CONTAINER="$NAME-verify"
 
 echo "== Building toolchain image $IMAGE (cached after the first run) =="
 docker build -t "$IMAGE" .
