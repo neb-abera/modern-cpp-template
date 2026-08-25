@@ -28,12 +28,23 @@ RUN apt-get update && apt-get upgrade -y && \
         ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Conan 2 (optional package manager), isolated via pipx
-RUN pipx install conan
-ENV PATH="/root/.local/bin:$PATH"
+# Remove pebble, an unused service manager shipped in the base image whose
+# bundled Go stdlib periodically trips CVE scanners
+RUN rm -f /usr/bin/pebble
 
 # vcpkg (optional package manager), used in manifest mode via the `vcpkg`
-# CMake preset
+# CMake preset; owned by the non-root user below so it can install ports
 RUN git clone --depth 1 https://github.com/microsoft/vcpkg /opt/vcpkg && \
-    /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+    /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics && \
+    chown -R ubuntu:ubuntu /opt/vcpkg
 ENV VCPKG_ROOT=/opt/vcpkg
+
+# Run as the image's non-root 'ubuntu' user (uid 1000) rather than root
+USER ubuntu
+WORKDIR /home/ubuntu
+
+# Conan 2 (optional package manager), isolated via pipx; its venv's
+# setuptools/msgpack are upgraded past known CVEs
+RUN pipx install conan && \
+    pipx runpip conan install --quiet --upgrade setuptools msgpack
+ENV PATH="/home/ubuntu/.local/bin:$PATH"

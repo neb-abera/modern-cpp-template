@@ -23,8 +23,8 @@ echo "== Running verification in container $CONTAINER =="
 docker rm -f "$CONTAINER" 2> /dev/null || true
 docker run --rm --name "$CONTAINER" -v "$PWD":/src:ro "$IMAGE" bash -c '
   set -eu
-  cp -r /src /work
-  cd /work
+  cp -r /src "$HOME/project"
+  cd "$HOME/project"
   rm -rf build
   ./scripts/verify.sh
 '

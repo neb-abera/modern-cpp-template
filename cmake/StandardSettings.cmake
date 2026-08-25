@@ -123,3 +123,36 @@ if(${PROJECT_NAME}_ENABLE_UBSAN AND NOT MSVC)
   add_compile_options(-fsanitize=undefined)
   add_link_options(-fsanitize=undefined)
 endif()
+
+#
+# Binary hardening (OpenSSF compiler hardening baseline)
+#
+
+option(${PROJECT_NAME}_ENABLE_HARDENING "Enable exploit-mitigation compiler and linker flags." ON)
+if(${PROJECT_NAME}_ENABLE_HARDENING)
+  include(CheckPIESupported)
+  check_pie_supported()
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+  if(MSVC)
+    # /GS (stack cookies) and ASLR-related flags are MSVC defaults, but are
+    # stated explicitly so turning the option off is meaningful; /guard:cf
+    # adds Control Flow Guard.
+    add_compile_options(/GS /guard:cf)
+    add_link_options(/DYNAMICBASE /HIGHENTROPYVA /NXCOMPAT /guard:cf)
+  else()
+    add_compile_options(-fstack-protector-strong -fno-strict-overflow -fno-delete-null-pointer-checks)
+    # _FORTIFY_SOURCE needs optimization and conflicts with ASan.
+    if(NOT ${PROJECT_NAME}_ENABLE_ASAN)
+      add_compile_options($<$<NOT:$<CONFIG:Debug>>:-U_FORTIFY_SOURCE>
+                          $<$<NOT:$<CONFIG:Debug>>:-D_FORTIFY_SOURCE=3>)
+    endif()
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+      add_compile_options(-fstack-clash-protection)
+      add_link_options(-Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack)
+      if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+        add_compile_options(-fcf-protection=full)
+      endif()
+    endif()
+  endif()
+endif()
