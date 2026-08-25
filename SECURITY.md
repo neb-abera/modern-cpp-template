@@ -21,6 +21,8 @@ Projects generated from this template ship with:
   Linux, Control Flow Guard and CET where available,
 * an AddressSanitizer + UndefinedBehaviorSanitizer CI gate on every pull
   request,
+* CodeQL static analysis of the C++ sources and the workflow files on every
+  pull request and weekly,
 * GitHub Actions and FetchContent dependencies pinned to full commit SHAs,
   kept current by Dependabot,
 * least-privilege workflow tokens (`contents: read` except where releasing
