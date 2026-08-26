@@ -18,6 +18,11 @@ set -u
 
 cd "$(dirname "$0")/.."
 
+# The CMake project name, read from CMakeLists.txt, so a rename (e.g. via
+# scripts/setup.sh) needs no edits here.
+PROJ=$(sed -n 's/^[[:space:]]*"\([A-Za-z0-9_-]*\)"[[:space:]]*$/\1/p' CMakeLists.txt | head -1)
+PROJ_LOWER=$(printf '%s' "$PROJ" | tr '[:upper:]' '[:lower:]')
+
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
 else
@@ -89,14 +94,14 @@ run_suite() {
 }
 
 banner "Release build + full test suite (warnings as errors)"
-if run_suite release "-DProject_WARNINGS_AS_ERRORS=ON"; then
+if run_suite release "-D${PROJ}_WARNINGS_AS_ERRORS=ON"; then
   count_ctest; pass "Release: clean build, all tests green"
 else
   count_ctest; fail "Release build/tests"
 fi
 
 banner "Tests under AddressSanitizer + UndefinedBehaviorSanitizer"
-if run_suite asan "-DProject_WARNINGS_AS_ERRORS=ON"; then
+if run_suite asan "-D${PROJ}_WARNINGS_AS_ERRORS=ON"; then
   count_ctest; pass "Sanitizers: no memory errors or undefined behavior"
 else
   count_ctest; fail "Sanitizer run"
@@ -114,9 +119,9 @@ fi
 
 banner "Executable mode smoke test"
 rm -rf build/debug
-if cmake --preset debug -DProject_BUILD_EXECUTABLE=ON > "$LOG" 2>&1 \
+if cmake --preset debug -D${PROJ}_BUILD_EXECUTABLE=ON > "$LOG" 2>&1 \
    && cmake --build --preset debug -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1 \
-   && out=$(./build/debug/Project) && [ "$out" = "1 + 2 = 3" ]; then
+   && out=$(./build/debug/${PROJ}) && [ "$out" = "1 + 2 = 3" ]; then
   echo "program output: $out"
   pass "Executable builds and prints the expected output"
 else
@@ -127,8 +132,8 @@ fi
 banner "Install tree purity"
 rm -rf build/verify-install
 if cmake --install build/release --prefix build/verify-install > "$LOG" 2>&1 \
-   && [ -f build/verify-install/include/project/tmp.hpp ] \
-   && [ -f build/verify-install/include/project/version.hpp ] \
+   && [ -f build/verify-install/include/${PROJ_LOWER}/tmp.hpp ] \
+   && [ -f build/verify-install/include/${PROJ_LOWER}/version.hpp ] \
    && ! find build/verify-install \( -iname '*gtest*' -o -iname '*gmock*' -o -iname '*catch2*' \) | grep -q .; then
   echo "installed files:"; find build/verify-install -type f | sed 's/^/  /'
   pass "Install tree contains only this project's files"

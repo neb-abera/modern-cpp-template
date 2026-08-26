@@ -115,43 +115,21 @@ to run:
 git clone https://github.com/neb-abera/modern-cpp-template/
 ```
 
-After finishing getting a copy of the project, with any of the methods above, create
-a new folder in the `include/` folder, with the name of your project.  Edit
-`cmake/SourcesAndHeaders.cmake` to add your files.
+After getting your copy (either way), one command finishes the setup — it
+renames the project after your repository (CMake project name and option
+prefix, the `*Config.cmake.in` file, presets, Makefile, the include
+directory and every `#include` of it, and the README badge/links) and
+enables the repo-level GitHub settings templates cannot carry over (secret
+scanning, push protection, private vulnerability reporting, Dependabot
+alerts + security updates, and branch protection requiring the six CI
+checks):
 
-You will also need to rename the `cmake/ProjectConfig.cmake.in` file to start with
-the ***exact name of your project***. Such as `cmake/MyNewProjectConfig.cmake.in`.
-
-Finally, change `"Project"` from `CMakeLists.txt`, from
-
-```cmake
-project(
-  "Project"
-  VERSION 0.1.0
-  LANGUAGES CXX
-)
+```bash
+./scripts/setup.sh
 ```
 
-to the ***exact name of your project***, i.e. using the previous name it will become:
-
-```cmake
-project(
-  MyNewProject
-  VERSION 0.1.0
-  LANGUAGES CXX
-)
-```
-
-Project options are prefixed with the project name (i.e.
-`MyNewProject_ENABLE_ASAN`), so after renaming you should also update the
-`Project_*` cache variables referenced in `CMakePresets.json` and the `docs`
-target in the `Makefile`.
-
-Finally, make the README yours: replace the badge and repository URLs at the
-top and in this section with your own repository's, and rewrite the
-description. Everything else adapts automatically — the release workflow
-names artifacts after your repository, and the Docker image/container names
-derive from your checkout directory.
+It needs the [GitHub CLI](https://cli.github.com) authenticated as a repo
+admin, and it is safe to re-run.
 
 To install an already built project, you need to run:
 
