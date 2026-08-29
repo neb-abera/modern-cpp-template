@@ -21,6 +21,11 @@ verbose_message("Adding tests under ${CMAKE_PROJECT_NAME}Tests...")
 
 include(FetchContent)
 
+# The dependency is not ours to lint: suspend clang-tidy while the fetched
+# framework compiles, restore it for this project's own targets.
+set(saved_clang_tidy "${CMAKE_CXX_CLANG_TIDY}")
+set(CMAKE_CXX_CLANG_TIDY "")
+
 if(${CMAKE_PROJECT_NAME}_USE_GTEST)
   FetchContent_Declare(
     googletest
@@ -36,6 +41,7 @@ if(${CMAKE_PROJECT_NAME}_USE_GTEST)
   # Prevent overriding the parent project's compiler/linker settings (MSVC)
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(googletest)
+  set(CMAKE_CXX_CLANG_TIDY "${saved_clang_tidy}")
   include(GoogleTest)
 
   if(${CMAKE_PROJECT_NAME}_USE_GOOGLE_MOCK)
@@ -55,6 +61,7 @@ elseif(${CMAKE_PROJECT_NAME}_USE_CATCH2)
     FIND_PACKAGE_ARGS
   )
   FetchContent_MakeAvailable(Catch2)
+  set(CMAKE_CXX_CLANG_TIDY "${saved_clang_tidy}")
   list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
   include(Catch)
 

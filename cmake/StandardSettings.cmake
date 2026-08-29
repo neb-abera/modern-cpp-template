@@ -124,6 +124,15 @@ if(${PROJECT_NAME}_ENABLE_UBSAN AND NOT MSVC)
   add_link_options(-fsanitize=undefined)
 endif()
 
+option(${PROJECT_NAME}_ENABLE_TSAN "Enable ThreadSanitizer to detect data races (GCC/Clang only; incompatible with ASan)." OFF)
+if(${PROJECT_NAME}_ENABLE_TSAN AND NOT MSVC)
+  if(${PROJECT_NAME}_ENABLE_ASAN)
+    message(FATAL_ERROR "ThreadSanitizer and AddressSanitizer cannot be combined; enable one at a time.")
+  endif()
+  add_compile_options(-fsanitize=thread)
+  add_link_options(-fsanitize=thread)
+endif()
+
 #
 # Binary hardening (OpenSSF compiler hardening baseline)
 #
@@ -142,6 +151,10 @@ if(${PROJECT_NAME}_ENABLE_HARDENING)
     add_link_options(/DYNAMICBASE /HIGHENTROPYVA /NXCOMPAT /guard:cf)
   else()
     add_compile_options(-fstack-protector-strong -fno-strict-overflow -fno-delete-null-pointer-checks)
+    # C++26-era hardened standard library: bounds and precondition checks in
+    # libstdc++/libc++ from a recompile alone. The unknown macro is inert on
+    # whichever library is not in use.
+    add_compile_options(-D_GLIBCXX_ASSERTIONS -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST)
     # _FORTIFY_SOURCE needs optimization and conflicts with ASan.
     if(NOT ${PROJECT_NAME}_ENABLE_ASAN)
       add_compile_options($<$<NOT:$<CONFIG:Debug>>:-U_FORTIFY_SOURCE>

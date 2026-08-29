@@ -48,6 +48,22 @@
       }
     },
     {
+      "name": "tidy",
+      "displayName": "Static analysis (clang-tidy, C++ Core Guidelines + CERT)",
+      "inherits": "debug",
+      "cacheVariables": {
+        "Project_ENABLE_CLANG_TIDY": "ON"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "ThreadSanitizer",
+      "inherits": "debug",
+      "cacheVariables": {
+        "Project_ENABLE_TSAN": "ON"
+      }
+    },
+    {
       "name": "vcpkg",
       "displayName": "Release + vcpkg (manifest mode)",
       "inherits": "release",
@@ -59,6 +75,8 @@
     { "name": "release", "configurePreset": "release", "configuration": "Release" },
     { "name": "coverage", "configurePreset": "coverage", "configuration": "Debug" },
     { "name": "asan", "configurePreset": "asan", "configuration": "Debug" },
+    { "name": "tidy", "configurePreset": "tidy", "configuration": "Debug" },
+    { "name": "tsan", "configurePreset": "tsan", "configuration": "Debug" },
     { "name": "vcpkg", "configurePreset": "vcpkg", "configuration": "Release" }
   ],
   "testPresets": [
@@ -71,6 +89,7 @@
     { "name": "debug", "inherits": "base-test", "configurePreset": "debug", "configuration": "Debug" },
     { "name": "release", "inherits": "base-test", "configurePreset": "release", "configuration": "Release" },
     { "name": "coverage", "inherits": "base-test", "configurePreset": "coverage", "configuration": "Debug" },
-    { "name": "asan", "inherits": "base-test", "configurePreset": "asan", "configuration": "Debug" }
+    { "name": "asan", "inherits": "base-test", "configurePreset": "asan", "configuration": "Debug" },
+    { "name": "tsan", "inherits": "base-test", "configurePreset": "tsan", "configuration": "Debug" }
   ]
 }

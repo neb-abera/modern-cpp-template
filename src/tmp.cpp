@@ -1,6 +1,6 @@
 #include "project/tmp.hpp"
 
-int tmp::add(int a, int b)
+int tmp::add(int lhs, int rhs)
 {
-  return a + b;
+  return lhs + rhs;
 }
