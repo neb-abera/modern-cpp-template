@@ -154,3 +154,56 @@ jobs:
     - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
       with:
         fail-on-severity: high
+
+  # ThreadSanitizer: the "C++ Concurrency in Action" material as a gate.
+  tsan:
+    name: thread sanitizer (TSan)
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: select GCC 14
+      run: |
+        sudo apt-get update && sudo apt-get install -y g++-14
+        echo "CC=gcc-14" >> "$GITHUB_ENV"
+        echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+    - name: configure
+      run: cmake --preset tsan -DProject_WARNINGS_AS_ERRORS=ON
+
+    - name: build
+      run: cmake --build --preset tsan -j 4
+
+    - name: run tests
+      run: ctest --preset tsan
+
+  # clang-tidy: the C++ Core Guidelines and SEI CERT checks as a gate. Runs
+  # in the project toolchain image so the clang-tidy version matches local
+  # verification.
+  static-analysis:
+    name: static analysis (clang-tidy)
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: build toolchain image
+      run: docker build -t toolchain .
+
+    - name: run clang-tidy via the tidy preset
+      run: |
+        docker run --rm -v "$PWD":/src:ro toolchain bash -c '
+          set -e
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          cmake --preset tidy
+          cmake --build --preset tidy -j 4
+        '

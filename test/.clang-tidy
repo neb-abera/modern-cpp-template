@@ -1,0 +1,6 @@
+---
+# Test code inherits the project config but relaxes rules that the GoogleTest
+# macros violate by design (TEST() registers via non-const globals whose
+# constructors could throw).
+InheritParentConfig: true
+Checks: '-cppcoreguidelines-avoid-non-const-global-variables,-cert-err58-cpp,-cppcoreguidelines-owning-memory'
