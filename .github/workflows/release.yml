@@ -27,25 +27,64 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
+    - name: harden runner (Linux)
+      if: runner.os == 'Linux'
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: select GCC 14 (Linux)
+    # The Linux release artifact is built inside the project's own toolchain
+    # image, the same one development and CI gating use ("train as you
+    # fight") — never a hand-picked compiler on the bare runner. The macOS
+    # and Windows artifacts can only be built with those platforms' native
+    # toolchains, so those legs stay on the host.
+    - name: set up Docker Buildx (Linux)
+      if: runner.os == 'Linux'
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+    # Same GHA layer cache as the CI workflow, so a release does not pay for
+    # a full image rebuild unless the Dockerfile changed since the last run.
+    - name: build toolchain image (Linux)
+      if: runner.os == 'Linux'
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # The install tree is staged onto a world-writable host mount; the
+    # source itself stays read-only, as in verify-docker.sh.
+    - name: build, test and stage in the container (Linux)
       if: runner.os == 'Linux'
       run: |
-        sudo apt-get update && sudo apt-get install -y g++-14
-        echo "CC=gcc-14" >> "$GITHUB_ENV"
-        echo "CXX=g++-14" >> "$GITHUB_ENV"
+        mkdir -p staging && chmod 777 staging
+        docker run --rm -v "$PWD":/src:ro -v "$PWD/staging":/out toolchain bash -c '
+          set -e
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          cmake --preset release -DProject_WARNINGS_AS_ERRORS=ON
+          cmake --build --preset release -j 4
+          ctest --preset release
+          cmake --install build/release --prefix /out --config Release
+        '
 
     - name: configure
-      run: cmake --preset release
+      if: runner.os != 'Linux'
+      run: cmake --preset release -DProject_WARNINGS_AS_ERRORS=ON
 
     - name: build
+      if: runner.os != 'Linux'
       run: cmake --build --preset release -j 4
 
     - name: run tests
+      if: runner.os != 'Linux'
       run: ctest --preset release
 
     - name: stage install tree
+      if: runner.os != 'Linux'
       run: cmake --install build/release --prefix staging --config Release
 
     # github.ref_name is passed through env rather than interpolated into the
