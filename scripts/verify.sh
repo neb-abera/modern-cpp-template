@@ -29,7 +29,7 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=7
+CHECKS_TOTAL=9
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -107,6 +107,27 @@ else
   count_ctest; fail "Sanitizer run"
 fi
 
+banner "Tests under ThreadSanitizer"
+if run_suite tsan "-D${PROJ}_WARNINGS_AS_ERRORS=ON"; then
+  count_ctest; pass "ThreadSanitizer: no data races"
+else
+  count_ctest; fail "ThreadSanitizer run"
+fi
+
+banner "Static analysis: clang-tidy (C++ Core Guidelines + CERT)"
+if ! command -v clang-tidy > /dev/null; then
+  skip "Static analysis (clang-tidy not installed)"
+else
+  rm -rf build/tidy
+  if cmake --preset tidy > "$LOG" 2>&1 \
+     && cmake --build --preset tidy -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1; then
+    pass "clang-tidy: sources conform to the configured guideline checks"
+  else
+    tail -30 "$LOG"
+    fail "Static analysis (clang-tidy)"
+  fi
+fi
+
 banner "Strict C++ standard mode"
 flag=$(grep -rho '\-std=[^ ]*' build/release/CMakeFiles/*.dir/flags.make 2>/dev/null | sort -u | head -1)
 if printf '%s' "$flag" | grep -q '^-std=c++'; then
@@ -147,7 +168,7 @@ banner "Mutation canary: do the tests catch a planted bug?"
 BACKUP="$(mktemp)"
 cp src/tmp.cpp "$BACKUP"
 restore_canary() { cp "$BACKUP" src/tmp.cpp; rm -f "$BACKUP"; }
-perl -pi -e 's/return a \+ b;/return a - b;/' src/tmp.cpp
+perl -pi -e 's/return lhs \+ rhs;/return lhs - rhs;/' src/tmp.cpp
 if ! cmp -s src/tmp.cpp "$BACKUP"; then
   cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1
   if ctest --preset release > "$LOG" 2>&1; then
