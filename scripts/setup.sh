@@ -12,8 +12,9 @@
 #   2. enables the GitHub security settings templates cannot carry over:
 #      secret scanning, push protection, private vulnerability reporting,
 #      Dependabot alerts and security updates
-#   3. enables branch protection on the default branch requiring the six CI
-#      checks
+#   3. enables branch protection on the default branch requiring the gating
+#      CI checks (the container jobs; the macOS/Windows portability smoke
+#      legs are advisory and deliberately not required)
 #
 # Requirements: git, and the GitHub CLI (`gh`, https://cli.github.com)
 # authenticated as an admin of the repository. Safe to re-run: every step is
@@ -69,7 +70,11 @@ else
   step "Renaming project \"$TEMPLATE_PROJECT\" to \"$name\""
 
   NEW=$name perl -pi -e 's/\Q"Project"\E/"$ENV{NEW}"/' CMakeLists.txt
-  NEW=$name perl -pi -e 's/\QProject_\E/$ENV{NEW}_/g' CMakePresets.json Makefile
+  # The workflows pass -D<name>_WARNINGS_AS_ERRORS=ON explicitly; without
+  # renaming them too, a generated project's CI would set a dead variable
+  # and silently lose warnings-as-errors.
+  NEW=$name perl -pi -e 's/\QProject_\E/$ENV{NEW}_/g' CMakePresets.json Makefile \
+    .github/workflows/ci.yml .github/workflows/release.yml
 
   if [ -f cmake/ProjectConfig.cmake.in ] && [ "$name" != "Project" ]; then
     git mv cmake/ProjectConfig.cmake.in "cmake/${name}Config.cmake.in"
@@ -113,7 +118,10 @@ gh api -X PUT "repos/$owner_repo/vulnerability-alerts" > /dev/null
 done_ "Dependabot alerts"
 
 #
-# 3. Branch protection requiring the six CI checks
+# 3. Branch protection requiring the gating CI checks. Every required check
+#    runs inside the project's toolchain container ("train as you fight");
+#    the macOS/Windows portability smoke legs are advisory, so they are
+#    deliberately absent from this list.
 #
 
 step "Enabling branch protection on $default_branch"
@@ -121,7 +129,7 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["ubuntu-latest", "macos-latest", "windows-latest", "sanitizers (ASan + UBSan)", "coverage", "clang-format"]
+    "contexts": ["build & test (toolchain container)", "sanitizers (ASan + UBSan)", "thread sanitizer (TSan)", "coverage", "clang-format", "static analysis (clang-tidy)", "fuzz smoke (libFuzzer)"]
   },
   "enforce_admins": true,
   "required_pull_request_reviews": null,
@@ -130,7 +138,7 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
   "allow_deletions": false
 }
 JSON
-done_ "six CI checks required, strict, enforced for admins"
+done_ "gating CI checks required, strict, enforced for admins"
 
 printf '\n%sSetup complete.%s Every future change now goes through a PR gated on the six
 CI checks. Verify the renamed project with: make verify-docker\n' "$BOLD" "$RESET"

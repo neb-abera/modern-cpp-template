@@ -47,13 +47,16 @@ or in CI. Individual test cases are registered with CTest via
 * **Package manager support**, with *vcpkg* (manifest mode, see `vcpkg.json`)
 and *Conan 2* (see `conanfile.txt`),
 
-* **CI workflows for Windows, Linux and macOS** as a single matrix using
-*GitHub Actions*, with builds treating **warnings as errors**, a dedicated
-**ASan + UBSan sanitizer job**, a **clang-format check**, and a **coverage
-job** — so a green run means the change built cleanly, passed every test
-(including under sanitizers) and is formatted, before it can merge. An
+* **CI that gates inside the production toolchain container** using *GitHub
+Actions* — the Linux build/test, sanitizer (**ASan + UBSan**, **TSan**),
+**coverage**, **clang-tidy** and **fuzz-smoke** gates all run inside the
+project's own Docker toolchain image, so every merge gate compiles with the
+exact compilers that ship ("train as you fight"), with builds treating
+**warnings as errors**, plus a **clang-format check** and advisory
+macOS/Windows **portability smoke builds** on native toolchains. An
 automated **release workflow** packages the install tree for all three
-platforms and publishes a GitHub Release on tags,
+platforms (Linux built in the same container) and publishes a GitHub
+Release on tags,
 
 * **Dockerized development environment** — a toolchain image pinning every
 compiler and tool the project uses, with `make shell` for day-to-day
@@ -125,7 +128,7 @@ prefix, the `*Config.cmake.in` file, presets, Makefile, the include
 directory and every `#include` of it, and the README badge/links) and
 enables the repo-level GitHub settings templates cannot carry over (secret
 scanning, push protection, private vulnerability reporting, Dependabot
-alerts + security updates, and branch protection requiring the six CI
+alerts + security updates, and branch protection requiring the gating CI
 checks):
 
 ```bash

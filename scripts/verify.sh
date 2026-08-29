@@ -119,7 +119,8 @@ if ! command -v clang-tidy > /dev/null; then
   skip "Static analysis (clang-tidy not installed)"
 else
   rm -rf build/tidy
-  if cmake --preset tidy > "$LOG" 2>&1 \
+  # Warnings-as-errors here too, matching the CI static-analysis gate.
+  if cmake --preset tidy "-D${PROJ}_WARNINGS_AS_ERRORS=ON" > "$LOG" 2>&1 \
      && cmake --build --preset tidy -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1; then
     pass "clang-tidy: sources conform to the configured guideline checks"
   else
