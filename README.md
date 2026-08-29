@@ -129,6 +129,16 @@ checks):
 ./scripts/setup.sh
 ```
 
+Dependencies then stay current by machinery, not memory: every Action and
+the Docker base image are pinned by commit SHA with a version comment, and
+Dependabot bumps SHA and comment together — minor/patch grouped into one
+weekly PR per ecosystem. The `dependabot-automerge` workflow arms auto-merge
+on every Dependabot PR, majors included; red CI, not update size, is the
+review signal. It needs the repository's Allow auto-merge setting plus a
+`DEPENDABOT_AUTOMERGE_TOKEN` secret (fine-grained PAT, contents + pull
+requests write — a PAT so the merge still triggers workflows, which
+`GITHUB_TOKEN` merges do not); until both exist it warns and does nothing.
+
 It needs the [GitHub CLI](https://cli.github.com) authenticated as a repo
 admin, and it is safe to re-run.
 
