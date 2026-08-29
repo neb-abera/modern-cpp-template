@@ -1,14 +1,32 @@
 # Keeps the SHA-pinned GitHub Actions and the Docker base image current.
 # Dependabot PRs update the pinned SHA and the version comment together, so
 # supply-chain pinning and staying on the latest versions are compatible.
+#
+# Minor and patch updates arrive grouped — one PR per ecosystem per week — and
+# the dependabot-automerge workflow arms auto-merge on every Dependabot PR,
+# majors included: red CI, not update size, is the review signal. A bump that
+# passes the gates merges itself; one that genuinely breaks stays open and
+# red for a human.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    groups:
+      docker-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
