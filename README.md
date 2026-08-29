@@ -65,7 +65,10 @@ developer machines and deployment servers,
 *Issues* and *Pull Requests*,
 
 * **Permissive license** to allow you to integrate it as easily as possible. The
-template is licensed under the [Unlicense](https://unlicense.org/),
+template is licensed under the
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) —
+attribution travels in the NOTICE file, and contributors grant the patent
+claims their code necessarily practices,
 
 * Options to build as a header-only library or executable, not just a static or
 shared library,
@@ -315,5 +318,7 @@ three platforms and publishes packaged install trees to a GitHub Release.
 
 ## License
 
-This project is licensed under the [Unlicense](https://unlicense.org/) - see the
-[LICENSE](LICENSE) file for details
+This project is licensed under the
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) — see the
+[LICENSE](LICENSE) file. Keep the [NOTICE](NOTICE) file's attribution with
+any copies
