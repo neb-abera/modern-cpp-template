@@ -29,7 +29,7 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=9
+CHECKS_TOTAL=10
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -125,6 +125,23 @@ else
   else
     tail -30 "$LOG"
     fail "Static analysis (clang-tidy)"
+  fi
+fi
+
+banner "Fuzz smoke: libFuzzer target builds and survives a short run"
+if ! command -v clang++ > /dev/null; then
+  skip "Fuzz smoke (clang++ not installed; libFuzzer needs Clang)"
+else
+  rm -rf build/fuzz
+  if cmake --preset fuzz > "$LOG" 2>&1 \
+     && cmake --build --preset fuzz -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1 \
+     && ./build/fuzz/fuzz/tmp_fuzz -max_total_time=5 > "$LOG" 2>&1; then
+    runs=$(grep -Eo 'Done [0-9]+ runs' "$LOG" | grep -Eo '[0-9]+' | head -1)
+    echo "fuzzer executed ${runs:-?} inputs without a crash"
+    pass "Fuzz smoke: no crashes under coverage-guided input"
+  else
+    tail -20 "$LOG"
+    fail "Fuzz smoke"
   fi
 fi
 
