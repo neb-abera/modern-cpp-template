@@ -1,4 +1,5 @@
 [![Actions Status](https://github.com/neb-abera/modern-cpp-template/workflows/CI/badge.svg)](https://github.com/neb-abera/modern-cpp-template/actions)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/neb-abera/modern-cpp-template/badge)](https://scorecard.dev/viewer/?uri=github.com/neb-abera/modern-cpp-template)
 
 # Modern C++ Template
 
