@@ -277,7 +277,10 @@ is not a failing check decays, so each source is wired to one:
   library** (`_GLIBCXX_ASSERTIONS` / libc++ hardening) — on by default in
   [StandardSettings.cmake](cmake/StandardSettings.cmake),
 * memory errors and undefined behavior — Address + UndefinedBehavior
-  sanitizer runs on every PR.
+  sanitizer runs on every PR,
+* **fuzzing** — a libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
+  via the `fuzz` preset; CI smoke-runs it, and the harness is where a real
+  project points the fuzzer at its parsers and input paths.
 
 What a linter cannot check — naming things well, small functions, honest
 tests (*Code Complete*, *Clean Code*, *Refactoring*) — is what the mutation
