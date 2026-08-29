@@ -12,6 +12,11 @@ permissions:
 env:
   PROJECT_NAME: ${{ github.event.repository.name }}
 
+# One release at a time, never cancelled mid-publish.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   build:
     name: ${{ matrix.os }}

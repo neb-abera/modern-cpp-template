@@ -1,9 +1,10 @@
 name: CodeQL
 
 on:
-  push:
-    branches: [ main, master ]
+  # Unfiltered pull_request: filtering on the default branch leaves a PR
+  # stacked on another feature branch with no checks at all.
   pull_request:
+  push:
     branches: [ main, master ]
   schedule:
     # Weekly scan so new queries run even without commits
@@ -11,6 +12,11 @@ on:
 
 permissions:
   contents: read
+
+# A newer push to the same branch makes the running check obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   analyze:
