@@ -257,6 +257,32 @@ If applicable, should be presented here.
 
 If applicable, should be presented here.
 
+## Where the practices come from
+
+The canon this template enforces, and the gate that enforces it — advice that
+is not a failing check decays, so each source is wired to one:
+
+* **C++ Core Guidelines** (Stroustrup/Sutter — the living successor to *C++
+  Coding Standards*) and the **SEI CERT C++ standard** — enforced by
+  clang-tidy's `cppcoreguidelines-*` and `cert-*` checks via the `tidy`
+  preset, gated in CI, warnings as errors ([.clang-tidy](.clang-tidy)),
+* **Effective (Modern) C++ / Effective STL** (Meyers) — the `modernize-*`,
+  `performance-*`, `readability-*` and `bugprone-*` checks in the same gate,
+* **C++ Concurrency in Action** (Williams) — the `tsan` preset runs the test
+  suite under ThreadSanitizer in CI; `concurrency-*` clang-tidy checks run
+  statically,
+* **cppbestpractices** (Jason Turner) — the warning set in
+  [CompilerWarnings.cmake](cmake/CompilerWarnings.cmake),
+* **OpenSSF compiler hardening** plus the **C++26 hardened standard
+  library** (`_GLIBCXX_ASSERTIONS` / libc++ hardening) — on by default in
+  [StandardSettings.cmake](cmake/StandardSettings.cmake),
+* memory errors and undefined behavior — Address + UndefinedBehavior
+  sanitizer runs on every PR.
+
+What a linter cannot check — naming things well, small functions, honest
+tests (*Code Complete*, *Clean Code*, *Refactoring*) — is what the mutation
+canary, the test-first workflow and code review are for.
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our how you can

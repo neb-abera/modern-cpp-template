@@ -50,18 +50,19 @@ TEST(TmpAddTest, HandlesExtremesWithoutOverflowing)
 class TmpAddFixture : public ::testing::Test
 {
  protected:
-  void SetUp() override
+  [[nodiscard]] int base() const
   {
-    base_ = tmp::add(1, 1);
+    return base_;
   }
 
-  int base_ = 0;
+ private:
+  int base_ = tmp::add(1, 1);
 };
 
 TEST_F(TmpAddFixture, CanBuildOnFixtureState)
 {
-  EXPECT_EQ(base_, 2);
-  EXPECT_EQ(tmp::add(base_, base_), 4);
+  EXPECT_EQ(base(), 2);
+  EXPECT_EQ(tmp::add(base(), base()), 4);
 }
 
 // Parameterized example: table-driven cases keep edge cases enumerable and
