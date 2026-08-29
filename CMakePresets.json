@@ -64,6 +64,19 @@
       }
     },
     {
+      "name": "fuzz",
+      "displayName": "libFuzzer + ASan/UBSan (Clang)",
+      "inherits": "debug",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "Project_ENABLE_FUZZING": "ON",
+        "Project_ENABLE_ASAN": "ON",
+        "Project_ENABLE_UBSAN": "ON",
+        "Project_ENABLE_UNIT_TESTING": "OFF"
+      }
+    },
+    {
       "name": "vcpkg",
       "displayName": "Release + vcpkg (manifest mode)",
       "inherits": "release",
@@ -77,6 +90,7 @@
     { "name": "asan", "configurePreset": "asan", "configuration": "Debug" },
     { "name": "tidy", "configurePreset": "tidy", "configuration": "Debug" },
     { "name": "tsan", "configurePreset": "tsan", "configuration": "Debug" },
+    { "name": "fuzz", "configurePreset": "fuzz", "configuration": "Debug" },
     { "name": "vcpkg", "configurePreset": "vcpkg", "configuration": "Release" }
   ],
   "testPresets": [
