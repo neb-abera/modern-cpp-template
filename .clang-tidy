@@ -1,6 +1,15 @@
 ---
-Checks: '*,-fuchsia-*,-google-*,-zircon-*,-abseil-*,-modernize-use-trailing-return-type,-llvm-*,-llvmlibc-*,-altera-*,-android-*,-readability-identifier-length,-misc-include-cleaner'
+# The enforcement arm of the canon: `cppcoreguidelines-*` implements the
+# C++ Core Guidelines (Stroustrup/Sutter — the living successor to "C++
+# Coding Standards"), `cert-*` the SEI CERT C++ standard, and `modernize-*`
+# / `performance-*` / `bugprone-*` cover most of Effective (Modern) C++.
+# Run it with the `tidy` preset; CI gates on it.
+#
+# Excluded: vendor-specific check sets, noisy style opinions
+# (identifier-length, trailing return types), and
+# easily-swappable-parameters (flags every (int, int) API).
+Checks: '*,-fuchsia-*,-google-*,-zircon-*,-abseil-*,-modernize-use-trailing-return-type,-llvm-*,-llvmlibc-*,-altera-*,-android-*,-readability-identifier-length,-misc-include-cleaner,-bugprone-easily-swappable-parameters'
 CheckOptions: [{ key: misc-non-private-member-variables-in-classes, value: IgnoreClassesWithAllMemberVariablesBeingPublic }]
 WarningsAsErrors: '*'
-HeaderFilterRegex: ''
+HeaderFilterRegex: '(include|src|test)/'
 FormatStyle: none
