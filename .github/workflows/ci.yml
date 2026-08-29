@@ -17,31 +17,68 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The merge gate. Builds and tests inside the project's own toolchain
+  # image — the same image `make shell` develops in and `make verify-docker`
+  # verifies in — so the compilers doing the gating are the compilers that
+  # ship. Train as you fight: a gate that compiles with a different
+  # toolchain than production proves nothing about production.
   build:
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    name: build & test (toolchain container)
+    runs-on: ubuntu-latest
 
     steps:
-    - name: harden runner (Linux)
-      if: runner.os == 'Linux'
+    - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    # The default GCC on the ubuntu-latest runner (24.04) is 13, which
-    # predates C++26; GCC 14+ supports it.
-    - name: select GCC 14 (Linux)
-      if: runner.os == 'Linux'
+    # BuildKit's GitHub Actions layer cache keeps the per-job image build
+    # cheap: only the first run after a Dockerfile change pays the full
+    # build, every other job and run gets the layers from cache in seconds.
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+    - name: build toolchain image
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # Source mounted read-only and copied inside, as in verify-docker.sh, so
+    # the checkout is never modified by the container.
+    - name: build, test and install in the container
       run: |
-        sudo apt-get update && sudo apt-get install -y g++-14
-        echo "CC=gcc-14" >> "$GITHUB_ENV"
-        echo "CXX=g++-14" >> "$GITHUB_ENV"
+        docker run --rm -v "$PWD":/src:ro toolchain bash -c '
+          set -e
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          cmake --preset release -DProject_WARNINGS_AS_ERRORS=ON
+          cmake --build --preset release -j 4
+          ctest --preset release
+          cmake --install build/release --prefix "$HOME/.local" --config Release
+        '
+
+  # Portability smoke, not a gate: macOS and Windows cannot run the Linux
+  # toolchain container, so these legs build with the runners' native
+  # toolchains (AppleClang, MSVC). They exist to catch gratuitous
+  # non-portability early, and that is all — the container job above is the
+  # merge gate. continue-on-error keeps a red leg here from failing the run;
+  # the job's own check still shows the failure for anyone who looks.
+  portability:
+    name: portability smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: configure
       run: cmake --preset release -DProject_WARNINGS_AS_ERRORS=ON
@@ -60,59 +97,77 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: harden runner (Linux)
-      if: runner.os == 'Linux'
+    - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: select GCC 14
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+    - name: build toolchain image
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: run tests under ASan + UBSan in the container
       run: |
-        sudo apt-get update && sudo apt-get install -y g++-14
-        echo "CC=gcc-14" >> "$GITHUB_ENV"
-        echo "CXX=g++-14" >> "$GITHUB_ENV"
-
-    - name: configure
-      run: cmake --preset asan -DProject_WARNINGS_AS_ERRORS=ON
-
-    - name: build
-      run: cmake --build --preset asan -j 4
-
-    - name: run tests
-      run: ctest --preset asan
+        docker run --rm -v "$PWD":/src:ro toolchain bash -c '
+          set -e
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          cmake --preset asan -DProject_WARNINGS_AS_ERRORS=ON
+          cmake --build --preset asan -j 4
+          ctest --preset asan
+        '
 
   coverage:
     name: coverage
     runs-on: ubuntu-latest
 
     steps:
-    - name: harden runner (Linux)
-      if: runner.os == 'Linux'
+    - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: select GCC 14
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+    - name: build toolchain image
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # gcov must match the compiler that produced the .gcno files; inside the
+    # container that is simply the image's own gcov, single-sourced from the
+    # Dockerfile. The .gcov files are written to a world-writable host mount
+    # (the source itself stays read-only), with the container-local prefix
+    # stripped so Codecov maps them to repository paths.
+    - name: build, test and generate coverage in the container
       run: |
-        sudo apt-get update && sudo apt-get install -y g++-14
-        echo "CC=gcc-14" >> "$GITHUB_ENV"
-        echo "CXX=g++-14" >> "$GITHUB_ENV"
-
-    - name: configure
-      run: cmake --preset coverage
-
-    - name: build
-      run: cmake --build --preset coverage -j 4
-
-    - name: run tests
-      run: ctest --preset coverage
-
-    - name: generate coverage data
-      run: find build/coverage -type f -name '*.gcno' -exec gcov-14 -pb {} +
+        mkdir -p coverage-out && chmod 777 coverage-out
+        docker run --rm -v "$PWD":/src:ro -v "$PWD/coverage-out":/out toolchain bash -c '
+          set -e
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          cmake --preset coverage -DProject_WARNINGS_AS_ERRORS=ON
+          cmake --build --preset coverage -j 4
+          ctest --preset coverage
+          find build/coverage -type f -name "*.gcno" -exec gcov -pb {} +
+          sed -i "s|$HOME/project/||g" ./*.gcov
+          cp ./*.gcov /out/
+        '
 
     - name: upload coverage to Codecov
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -167,20 +222,27 @@ jobs:
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: select GCC 14
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+    - name: build toolchain image
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: run tests under TSan in the container
       run: |
-        sudo apt-get update && sudo apt-get install -y g++-14
-        echo "CC=gcc-14" >> "$GITHUB_ENV"
-        echo "CXX=g++-14" >> "$GITHUB_ENV"
-
-    - name: configure
-      run: cmake --preset tsan -DProject_WARNINGS_AS_ERRORS=ON
-
-    - name: build
-      run: cmake --build --preset tsan -j 4
-
-    - name: run tests
-      run: ctest --preset tsan
+        docker run --rm -v "$PWD":/src:ro toolchain bash -c '
+          set -e
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          cmake --preset tsan -DProject_WARNINGS_AS_ERRORS=ON
+          cmake --build --preset tsan -j 4
+          ctest --preset tsan
+        '
 
   # clang-tidy: the C++ Core Guidelines and SEI CERT checks as a gate. Runs
   # in the project toolchain image so the clang-tidy version matches local
@@ -196,15 +258,24 @@ jobs:
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
     - name: build toolchain image
-      run: docker build -t toolchain .
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: run clang-tidy via the tidy preset
       run: |
         docker run --rm -v "$PWD":/src:ro toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
-          cmake --preset tidy
+          cmake --preset tidy -DProject_WARNINGS_AS_ERRORS=ON
           cmake --build --preset tidy -j 4
         '
 
@@ -222,8 +293,17 @@ jobs:
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
     - name: build toolchain image
-      run: docker build -t toolchain .
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: build and smoke-run the fuzz target
       run: |
