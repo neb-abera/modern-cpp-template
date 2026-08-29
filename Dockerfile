@@ -10,6 +10,8 @@ RUN apt-get update && apt-get upgrade -y && \
         build-essential \
         ccache \
         clang \
+        libclang-rt-21-dev \
+        libfuzzer-21-dev \
         clang-format \
         clang-tidy \
         cmake \

@@ -207,3 +207,30 @@ jobs:
           cmake --preset tidy
           cmake --build --preset tidy -j 4
         '
+
+  # libFuzzer smoke: the fuzz harness builds and survives a short
+  # coverage-guided run. Real fuzzing campaigns run longer or continuously
+  # (see the fuzz directory); this gate keeps the harness from rotting.
+  fuzz:
+    name: fuzz smoke (libFuzzer)
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: build toolchain image
+      run: docker build -t toolchain .
+
+    - name: build and smoke-run the fuzz target
+      run: |
+        docker run --rm -v "$PWD":/src:ro toolchain bash -c '
+          set -e
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          cmake --preset fuzz
+          cmake --build --preset fuzz -j 4
+          ./build/fuzz/fuzz/tmp_fuzz -max_total_time=15
+        '
