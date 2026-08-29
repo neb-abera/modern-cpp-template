@@ -124,6 +124,8 @@ if(${PROJECT_NAME}_ENABLE_UBSAN AND NOT MSVC)
   add_link_options(-fsanitize=undefined)
 endif()
 
+option(${PROJECT_NAME}_ENABLE_FUZZING "Build libFuzzer targets from the `fuzz` directory (Clang only; use the `fuzz` preset)." OFF)
+
 option(${PROJECT_NAME}_ENABLE_TSAN "Enable ThreadSanitizer to detect data races (GCC/Clang only; incompatible with ASan)." OFF)
 if(${PROJECT_NAME}_ENABLE_TSAN AND NOT MSVC)
   if(${PROJECT_NAME}_ENABLE_ASAN)
