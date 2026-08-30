@@ -29,7 +29,7 @@
 
 set -u
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 
 # The CMake project name, read from CMakeLists.txt, so a rename (e.g. via
 # scripts/setup.sh) needs no edits here.
@@ -204,9 +204,9 @@ fi
 if enabled exe; then
 banner "Executable mode smoke test"
 rm -rf build/debug
-if cmake --preset debug -D${PROJ}_BUILD_EXECUTABLE=ON > "$LOG" 2>&1 \
+if cmake --preset debug -D"${PROJ}"_BUILD_EXECUTABLE=ON > "$LOG" 2>&1 \
    && cmake --build --preset debug -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1 \
-   && out=$(./build/debug/${PROJ}) && [ "$out" = "1 + 2 = 3" ]; then
+   && out=$(./build/debug/"${PROJ}") && [ "$out" = "1 + 2 = 3" ]; then
   echo "program output: $out"
   pass "Executable builds and prints the expected output"
 else
@@ -219,8 +219,8 @@ if enabled install; then
 banner "Install tree purity"
 rm -rf build/verify-install
 if cmake --install build/release --prefix build/verify-install > "$LOG" 2>&1 \
-   && [ -f build/verify-install/include/${PROJ_LOWER}/tmp.hpp ] \
-   && [ -f build/verify-install/include/${PROJ_LOWER}/version.hpp ] \
+   && [ -f build/verify-install/include/"${PROJ_LOWER}"/tmp.hpp ] \
+   && [ -f build/verify-install/include/"${PROJ_LOWER}"/version.hpp ] \
    && [ -f "build/verify-install/share/doc/${PROJ}/LICENSE" ] \
    && [ -f "build/verify-install/share/doc/${PROJ}/NOTICE" ] \
    && ! find build/verify-install \( -iname '*gtest*' -o -iname '*gmock*' -o -iname '*catch2*' \) | grep -q .; then

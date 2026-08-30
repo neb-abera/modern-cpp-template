@@ -1,5 +1,22 @@
 ignore:
   - "test"
 
+# Codecov-side status checks. These are not required branch-protection
+# contexts (the required "coverage" check is the CI job that builds and
+# uploads), so a miss shows red on the PR without blocking the merge —
+# honest signal, moderate enforcement. The template's own coverage is 100%;
+# thresholds leave room for real projects generated from it.
+coverage:
+  status:
+    project:
+      default:
+        target: 90%
+        threshold: 2%
+    patch:
+      default:
+        target: 75%
+        # Informational: tiny diffs make patch coverage noisy.
+        informational: true
+
 comment:
   require_changes: true

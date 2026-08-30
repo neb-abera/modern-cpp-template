@@ -7,8 +7,9 @@
 # What it does:
 #   1. renames the project after your repository: the CMake project name and
 #      option prefix, the *Config.cmake.in file, the presets and Makefile,
-#      the include directory (and every #include of it), and the README
-#      badge/links — then pushes the change
+#      the include directory (and every #include of it), and the repository
+#      links in README.md, SECURITY.md and the issue-template contact link —
+#      then pushes the change
 #   2. enables the GitHub security settings templates cannot carry over:
 #      secret scanning, push protection, private vulnerability reporting,
 #      Dependabot alerts and security updates
@@ -86,7 +87,8 @@ else
     NEW=$name_lower perl -pi -e 's#\Q"project/\E#"$ENV{NEW}/#g' src/*.cpp test/src/*.cpp
   fi
 
-  NEW_REPO="$owner_repo" perl -pi -e 's#\Qneb-abera/modern-cpp-template\E#$ENV{NEW_REPO}#g' README.md
+  NEW_REPO="$owner_repo" perl -pi -e 's#\Qneb-abera/modern-cpp-template\E#$ENV{NEW_REPO}#g' \
+    README.md SECURITY.md .github/ISSUE_TEMPLATE/config.yml
   NEW=$repo perl -pi -e 's/\QModern C++ Template\E/$ENV{NEW}/' README.md
 
   if git diff --quiet && git diff --cached --quiet; then
@@ -137,6 +139,7 @@ REQUIRED_CHECKS=(
   "thread sanitizer (TSan)"
   "coverage"
   "clang-format"
+  "lint workflows and scripts (actionlint + shellcheck)"
   "static analysis (clang-tidy)"
   "fuzz smoke (libFuzzer)"
   "bench smoke (Google Benchmark)"

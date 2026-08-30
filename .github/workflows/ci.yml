@@ -20,6 +20,7 @@ jobs:
   build:
     name: build & test (toolchain container)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
     - name: harden runner
@@ -31,6 +32,8 @@ jobs:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     # BuildKit's GitHub Actions layer cache keeps the per-job image build
     # cheap: only the first run after a Dockerfile change pays the full
@@ -68,6 +71,7 @@ jobs:
   portability:
     name: portability smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -75,6 +79,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: configure
       run: cmake --preset release -DProject_WARNINGS_AS_ERRORS=ON
@@ -91,6 +97,7 @@ jobs:
   sanitizers:
     name: sanitizers (ASan + UBSan)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
     - name: harden runner
@@ -102,6 +109,8 @@ jobs:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: set up Docker Buildx
       uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -128,6 +137,7 @@ jobs:
   coverage:
     name: coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
     - name: harden runner
@@ -139,6 +149,8 @@ jobs:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: set up Docker Buildx
       uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -179,6 +191,7 @@ jobs:
   format:
     name: clang-format
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - name: harden runner (Linux)
@@ -212,11 +225,54 @@ jobs:
           storage.googleapis.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: check formatting
       run: |
         shopt -s nullglob globstar
         clang-format --dry-run --Werror src/**/*.cpp include/**/*.hpp test/**/*.cpp fuzz/**/*.cpp bench/**/*.cpp
+
+  # Lint the linters: actionlint keeps the workflow files themselves honest
+  # (expression typos, wrong action inputs, shellcheck on run: blocks) and
+  # shellcheck covers the repository's scripts. The actionlint binary is
+  # pinned by version and SHA-256, matching the SHA-pinning discipline used
+  # for actions.
+  lint:
+    name: lint workflows and scripts (actionlint + shellcheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: install actionlint (pinned, checksum-verified)
+      run: |
+        set -euo pipefail
+        version=1.7.12
+        sha256=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        curl -fsSL -o actionlint.tar.gz \
+          "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz"
+        echo "${sha256}  actionlint.tar.gz" | sha256sum -c -
+        tar -xzf actionlint.tar.gz actionlint
+        rm actionlint.tar.gz
+
+    - name: actionlint over the workflows
+      run: ./actionlint -color
+
+    - name: shellcheck over the scripts
+      run: shellcheck scripts/*.sh
 
   # Flags known-vulnerable dependencies introduced by a PR, from the diff of
   # the dependency graph (actions and docker ecosystems here).
@@ -224,6 +280,7 @@ jobs:
     name: dependency review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -257,6 +314,8 @@ jobs:
           storage.googleapis.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
       with:
@@ -266,6 +325,7 @@ jobs:
   tsan:
     name: thread sanitizer (TSan)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -276,6 +336,8 @@ jobs:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: set up Docker Buildx
       uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -305,6 +367,7 @@ jobs:
   static-analysis:
     name: static analysis (clang-tidy)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -315,6 +378,8 @@ jobs:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: set up Docker Buildx
       uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -343,6 +408,7 @@ jobs:
   fuzz:
     name: fuzz smoke (libFuzzer)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -353,6 +419,8 @@ jobs:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: set up Docker Buildx
       uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -381,6 +449,7 @@ jobs:
   bench:
     name: bench smoke (Google Benchmark)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
     - name: harden runner
@@ -392,6 +461,8 @@ jobs:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: set up Docker Buildx
       uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -424,6 +495,7 @@ jobs:
   verify-extras:
     name: verify extras (canary, purity, strict, exe, drift)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
     - name: harden runner
@@ -435,6 +507,8 @@ jobs:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: set up Docker Buildx
       uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
