@@ -170,7 +170,33 @@ JSON
 done_ "gating CI checks required, strict, enforced for admins"
 
 #
-# 4. GitHub Pages for the Doxygen docs (docs.yml deploys on pushes)
+# 4. Commit signing — require Verified commits, but only when this machine
+#    can actually produce them, so a fresh adopter is never locked out of
+#    their own default branch.
+#
+
+if [ "$(git config --get commit.gpgsign || true)" = "true" ]; then
+  gh api -X POST "repos/$owner_repo/branches/$default_branch/protection/required_signatures" > /dev/null
+  done_ "$default_branch accepts only Verified (signed) commits"
+else
+  warn "commit signing is not configured (commit.gpgsign is not true); $default_branch does NOT require signatures"
+  warn "configure signing, then run: gh api -X POST repos/$owner_repo/branches/$default_branch/protection/required_signatures"
+fi
+
+#
+# 5. Let workflows open pull requests. The monthly fetchcontent-upgrade
+#    workflow proposes dependency-pin bumps as PRs; without this repository
+#    setting its create-pull-request step fails. Default token permissions
+#    stay read-only — workflows that need more grant it per job.
+#
+
+gh api -X PUT "repos/$owner_repo/actions/permissions/workflow" \
+  -f default_workflow_permissions=read \
+  -F can_approve_pull_request_reviews=true > /dev/null
+done_ "workflows may open PRs (fetchcontent-upgrade); default token stays read-only"
+
+#
+# 6. GitHub Pages for the Doxygen docs (docs.yml deploys on pushes)
 #
 
 step "Enabling GitHub Pages (built by Actions)"
