@@ -2,12 +2,19 @@ cmake_minimum_required(VERSION 3.28)
 
 #
 # libFuzzer targets (Clang only: -fsanitize=fuzzer). Each *_fuzz.cpp becomes
-# a fuzzer binary; run one with e.g.
+# a fuzzer binary; run one seeded from its committed corpus with e.g.
 #
-#   ./build/fuzz/tmp_fuzz -max_total_time=60
+#   ./build/fuzz/tmp_fuzz -max_total_time=60 corpus/tmp_fuzz
 #
 # The `fuzz` preset builds these with Address+UB sanitizers so findings are
 # diagnosed, not just crashed on.
+#
+# corpus/<target>/ is the committed regression corpus: seeds that exercise
+# the target's parse paths, plus the input of every crash ever fixed. When
+# a fuzzer (locally or in CI — crash inputs are uploaded as the
+# fuzz-crash-artifacts artifact on a red run) finds a crash, fix the bug
+# and commit the crashing input to corpus/<target>/; every later smoke run
+# then replays it, so the fix cannot regress silently.
 #
 
 project(

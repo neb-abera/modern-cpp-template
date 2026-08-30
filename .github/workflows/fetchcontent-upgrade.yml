@@ -1,0 +1,63 @@
+# Opens a PR moving the FetchContent dependency pins (googletest, Catch2,
+# Google Benchmark) to their latest upstream releases. Dependabot has no
+# FetchContent ecosystem, so the commit-SHA pins in test/CMakeLists.txt and
+# bench/CMakeLists.txt are invisible to it; scripts/check-fetchcontent-updates.sh
+# closes that gap the way scripts/check-dotnet-major.sh does for the webapp
+# template's cross-major jumps.
+#
+# Runs monthly and does nothing when the pins are current. Scheduled-only:
+# this produces no PR-gating context, so it is deliberately outside
+# setup.sh's REQUIRED_CHECKS and the drift guard's scope. PRs opened with
+# the default workflow token do not trigger CI — close and reopen the PR
+# (or push an empty commit) to run the checks.
+name: fetchcontent-upgrade
+
+on:
+  schedule:
+    - cron: "0 6 4 * *"
+  workflow_dispatch:
+
+# Nothing at the workflow level: the write grants live on the one job that
+# needs them (Scorecard Token-Permissions).
+permissions: {}
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: block
+          # github.com: checkout; api.github.com: the release/commit queries
+          # and create-pull-request's API-signed commits and PR call.
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: check for newer FetchContent releases
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: SUMMARY_FILE="$RUNNER_TEMP/fetchcontent-summary.md" scripts/check-fetchcontent-updates.sh
+
+      - name: open the upgrade PR
+        if: steps.check.outputs.updates == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          branch: chore/fetchcontent-upgrade
+          delete-branch: true
+          # Commit via GitHub's API so the commit is signed by GitHub itself;
+          # branches requiring Verified commits reject CLI-made bot commits.
+          sign-commits: true
+          commit-message: "Update FetchContent pins to the latest releases"
+          title: "Update FetchContent pins to the latest releases"
+          body-path: ${{ runner.temp }}/fetchcontent-summary.md
