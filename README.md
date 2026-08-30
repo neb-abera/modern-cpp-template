@@ -1,5 +1,6 @@
 [![Actions Status](https://github.com/neb-abera/modern-cpp-template/workflows/CI/badge.svg)](https://github.com/neb-abera/modern-cpp-template/actions)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/neb-abera/modern-cpp-template/badge)](https://scorecard.dev/viewer/?uri=github.com/neb-abera/modern-cpp-template)
+[![codecov](https://codecov.io/gh/neb-abera/modern-cpp-template/graph/badge.svg)](https://app.codecov.io/gh/neb-abera/modern-cpp-template)
 
 # Modern C++ Template
 
@@ -182,7 +183,7 @@ canary, the test-first workflow and code review are for.
 One command finishes the setup — it renames the project after your
 repository (CMake project name and option prefix, the `*Config.cmake.in`
 file, presets, Makefile, the include directory and every `#include` of it,
-and the README badge/links) and enables the repo-level GitHub settings
+and the README badges/links, the Codecov coverage badge included) and enables the repo-level GitHub settings
 templates cannot carry over (secret scanning, push protection, private
 vulnerability reporting, Dependabot alerts + security updates, GitHub Pages,
 and branch protection requiring the gating CI checks):
@@ -197,6 +198,8 @@ additionally needs the repository's Allow auto-merge setting plus a
 `DEPENDABOT_AUTOMERGE_TOKEN` secret (fine-grained PAT, contents + pull
 requests write — a PAT so the merge still triggers workflows, which
 `GITHUB_TOKEN` merges do not); until both exist it warns and does nothing.
+The coverage badge (rewritten to your repository by the same rename) reads
+"unknown" until a `CODECOV_TOKEN` secret is added and coverage uploads once.
 
 ## License
 

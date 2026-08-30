@@ -87,6 +87,10 @@ else
     NEW=$name_lower perl -pi -e 's#\Q"project/\E#"$ENV{NEW}/#g' src/*.cpp test/src/*.cpp
   fi
 
+  # Covers every owner/repo reference in these files, the README's CI and
+  # Codecov badge URLs included, so a generated repository's badges point at
+  # its own Actions runs and Codecov project (the coverage badge reads
+  # "unknown" until a CODECOV_TOKEN secret is added and coverage uploads).
   NEW_REPO="$owner_repo" perl -pi -e 's#\Qneb-abera/modern-cpp-template\E#$ENV{NEW_REPO}#g' \
     README.md SECURITY.md .github/ISSUE_TEMPLATE/config.yml
   NEW=$repo perl -pi -e 's/\QModern C++ Template\E/$ENV{NEW}/' README.md

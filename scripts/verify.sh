@@ -25,6 +25,10 @@
 # job covers. The strict/install/canary tags read the release build tree, so
 # include release with them.
 #
+# When GITHUB_STEP_SUMMARY is set (GitHub Actions, or exported locally) the
+# final tally is also appended there as markdown; runs without it change
+# nothing.
+#
 # Exit code 0 means everything passed.
 
 set -u
@@ -56,6 +60,10 @@ CHECKS_FAILED=0
 CHECKS_SKIPPED=0
 TESTS_PASSED=0
 TESTS_FAILED=0
+# Line-coverage percentage, e.g. "97.5%". Set it from any coverage-measuring
+# check that joins the suite; the standard twelve checks measure none (CI's
+# dedicated coverage job does), so the summary line is omitted when empty.
+COVERAGE_PCT=""
 FAILED_NAMES=""
 LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
@@ -293,11 +301,33 @@ else
 fi
 fi
 
+# Job-summary parity: when GITHUB_STEP_SUMMARY is set (GitHub Actions, or a
+# local run exporting it), append the same tally as markdown. Local runs
+# without the variable are unchanged.
+write_step_summary() {
+  [ -n "${GITHUB_STEP_SUMMARY:-}" ] || return 0
+  {
+    printf '### verify.sh (%d checks selected)\n\n' "$CHECKS_TOTAL"
+    printf '| Checks passed | Checks failed | Checks skipped | Tests passed | Tests failed |\n'
+    printf '| --- | --- | --- | --- | --- |\n'
+    printf '| %d | %d | %d | %d | %d |\n' \
+      "$CHECKS_PASSED" "$CHECKS_FAILED" "$CHECKS_SKIPPED" "$TESTS_PASSED" "$TESTS_FAILED"
+    if [ -n "$COVERAGE_PCT" ]; then
+      printf '\nLine coverage: %s (gate: >= 90%%)\n' "$COVERAGE_PCT"
+    fi
+    if [ "$CHECKS_FAILED" -gt 0 ]; then
+      printf '\nFailed checks:\n\n'
+      printf '%b' "$FAILED_NAMES"
+    fi
+  } >> "$GITHUB_STEP_SUMMARY" || true
+}
+
 printf '\n%s========================= VERIFICATION COMPLETE =========================%s\n' "$BOLD" "$RESET"
 printf 'Checks : %s%d passed%s, %s%d failed%s, %d skipped (of %d)\n' \
   "$GREEN" "$CHECKS_PASSED" "$RESET" "$RED" "$CHECKS_FAILED" "$RESET" "$CHECKS_SKIPPED" "$CHECKS_TOTAL"
 printf 'Tests  : %s%d passed%s, %s%d failed%s\n' \
   "$GREEN" "$TESTS_PASSED" "$RESET" "$RED" "$TESTS_FAILED" "$RESET"
+write_step_summary
 if [ "$CHECKS_FAILED" -eq 0 ]; then
   printf '%s%sALL CHECKS PASSED — this build behaves as intended.%s\n' "$BOLD" "$GREEN" "$RESET"
   exit 0
