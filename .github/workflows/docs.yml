@@ -1,9 +1,10 @@
 name: Docs
 
-# Publish the Doxygen API documentation to GitHub Pages on every push to the
-# default branch. Requires Pages to be set to "GitHub Actions" in the repo
-# settings (scripts/setup.sh enables it).
+# Build the Doxygen API documentation on every pull request, and publish it to
+# GitHub Pages on every push to the default branch. Requires Pages to be set to
+# "GitHub Actions" in the repo settings (scripts/setup.sh enables it).
 on:
+  pull_request:
   push:
     branches: [main, master]
   workflow_dispatch:
@@ -17,6 +18,7 @@ concurrency:
 
 jobs:
   build:
+    name: docs build (toolchain container)
     runs-on: ubuntu-latest
     steps:
     - name: harden runner
@@ -43,7 +45,10 @@ jobs:
 
     - name: build Doxygen docs in the container
       run: |
+        # The container runs as uid 1000 (ubuntu) but the runner creates this
+        # directory as uid 1001, so it must be world-writable for the copy-out.
         mkdir -p site
+        chmod 777 site
         docker run --rm -v "$PWD":/src:ro -v "$PWD/site":/out toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
@@ -59,6 +64,8 @@ jobs:
         path: site
 
   deploy:
+    # Pull requests only build; publishing happens on the default branch.
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     permissions:
