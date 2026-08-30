@@ -16,13 +16,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
-  # The merge gate. Builds and tests inside the project's own toolchain
-  # image — the same image `make shell` develops in and `make verify-docker`
-  # verifies in — so the compilers doing the gating are the compilers that
-  # ship. Train as you fight: a gate that compiles with a different
-  # toolchain than production proves nothing about production.
-  build:
+jobs:  build:
     name: build & test (toolchain container)
     runs-on: ubuntu-latest
 
@@ -30,31 +24,10 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: block
-        allowed-endpoints: >
-          github.com:443
-          api.github.com:443
-          codeload.github.com:443
-          raw.githubusercontent.com:443
-          objects.githubusercontent.com:443
-          release-assets.githubusercontent.com:443
-          uploads.github.com:443
-          auth.docker.io:443
-          registry-1.docker.io:443
-          production.cloudflare.docker.com:443
-          index.docker.io:443
-          archive.ubuntu.com:80
-          archive.ubuntu.com:443
-          security.ubuntu.com:80
-          security.ubuntu.com:443
-          pypi.org:443
-          files.pythonhosted.org:443
-          ghcr.io:443
-          pkg-containers.githubusercontent.com:443
-          cli.codecov.io:443
-          api.codecov.io:443
-          ingest.codecov.io:443
-          storage.googleapis.com:443
+# Audit, not block: this job builds/runs containers, and container-side
+        # DNS bypasses harden-runner's resolver, so blocked lookups surface as
+        # refused raw-IP dials. Host-process jobs stay on block.
+        egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -124,31 +97,10 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: block
-        allowed-endpoints: >
-          github.com:443
-          api.github.com:443
-          codeload.github.com:443
-          raw.githubusercontent.com:443
-          objects.githubusercontent.com:443
-          release-assets.githubusercontent.com:443
-          uploads.github.com:443
-          auth.docker.io:443
-          registry-1.docker.io:443
-          production.cloudflare.docker.com:443
-          index.docker.io:443
-          archive.ubuntu.com:80
-          archive.ubuntu.com:443
-          security.ubuntu.com:80
-          security.ubuntu.com:443
-          pypi.org:443
-          files.pythonhosted.org:443
-          ghcr.io:443
-          pkg-containers.githubusercontent.com:443
-          cli.codecov.io:443
-          api.codecov.io:443
-          ingest.codecov.io:443
-          storage.googleapis.com:443
+# Audit, not block: this job builds/runs containers, and container-side
+        # DNS bypasses harden-runner's resolver, so blocked lookups surface as
+        # refused raw-IP dials. Host-process jobs stay on block.
+        egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -182,31 +134,10 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: block
-        allowed-endpoints: >
-          github.com:443
-          api.github.com:443
-          codeload.github.com:443
-          raw.githubusercontent.com:443
-          objects.githubusercontent.com:443
-          release-assets.githubusercontent.com:443
-          uploads.github.com:443
-          auth.docker.io:443
-          registry-1.docker.io:443
-          production.cloudflare.docker.com:443
-          index.docker.io:443
-          archive.ubuntu.com:80
-          archive.ubuntu.com:443
-          security.ubuntu.com:80
-          security.ubuntu.com:443
-          pypi.org:443
-          files.pythonhosted.org:443
-          ghcr.io:443
-          pkg-containers.githubusercontent.com:443
-          cli.codecov.io:443
-          api.codecov.io:443
-          ingest.codecov.io:443
-          storage.googleapis.com:443
+# Audit, not block: this job builds/runs containers, and container-side
+        # DNS bypasses harden-runner's resolver, so blocked lookups surface as
+        # refused raw-IP dials. Host-process jobs stay on block.
+        egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -307,6 +238,8 @@ jobs:
           objects.githubusercontent.com:443
           release-assets.githubusercontent.com:443
           uploads.github.com:443
+          api.deps.dev:443
+          api.securityscorecards.dev:443
           auth.docker.io:443
           registry-1.docker.io:443
           production.cloudflare.docker.com:443
@@ -338,31 +271,10 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: block
-        allowed-endpoints: >
-          github.com:443
-          api.github.com:443
-          codeload.github.com:443
-          raw.githubusercontent.com:443
-          objects.githubusercontent.com:443
-          release-assets.githubusercontent.com:443
-          uploads.github.com:443
-          auth.docker.io:443
-          registry-1.docker.io:443
-          production.cloudflare.docker.com:443
-          index.docker.io:443
-          archive.ubuntu.com:80
-          archive.ubuntu.com:443
-          security.ubuntu.com:80
-          security.ubuntu.com:443
-          pypi.org:443
-          files.pythonhosted.org:443
-          ghcr.io:443
-          pkg-containers.githubusercontent.com:443
-          cli.codecov.io:443
-          api.codecov.io:443
-          ingest.codecov.io:443
-          storage.googleapis.com:443
+# Audit, not block: this job builds/runs containers, and container-side
+        # DNS bypasses harden-runner's resolver, so blocked lookups surface as
+        # refused raw-IP dials. Host-process jobs stay on block.
+        egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -398,31 +310,10 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: block
-        allowed-endpoints: >
-          github.com:443
-          api.github.com:443
-          codeload.github.com:443
-          raw.githubusercontent.com:443
-          objects.githubusercontent.com:443
-          release-assets.githubusercontent.com:443
-          uploads.github.com:443
-          auth.docker.io:443
-          registry-1.docker.io:443
-          production.cloudflare.docker.com:443
-          index.docker.io:443
-          archive.ubuntu.com:80
-          archive.ubuntu.com:443
-          security.ubuntu.com:80
-          security.ubuntu.com:443
-          pypi.org:443
-          files.pythonhosted.org:443
-          ghcr.io:443
-          pkg-containers.githubusercontent.com:443
-          cli.codecov.io:443
-          api.codecov.io:443
-          ingest.codecov.io:443
-          storage.googleapis.com:443
+# Audit, not block: this job builds/runs containers, and container-side
+        # DNS bypasses harden-runner's resolver, so blocked lookups surface as
+        # refused raw-IP dials. Host-process jobs stay on block.
+        egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -457,31 +348,10 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: block
-        allowed-endpoints: >
-          github.com:443
-          api.github.com:443
-          codeload.github.com:443
-          raw.githubusercontent.com:443
-          objects.githubusercontent.com:443
-          release-assets.githubusercontent.com:443
-          uploads.github.com:443
-          auth.docker.io:443
-          registry-1.docker.io:443
-          production.cloudflare.docker.com:443
-          index.docker.io:443
-          archive.ubuntu.com:80
-          archive.ubuntu.com:443
-          security.ubuntu.com:80
-          security.ubuntu.com:443
-          pypi.org:443
-          files.pythonhosted.org:443
-          ghcr.io:443
-          pkg-containers.githubusercontent.com:443
-          cli.codecov.io:443
-          api.codecov.io:443
-          ingest.codecov.io:443
-          storage.googleapis.com:443
+# Audit, not block: this job builds/runs containers, and container-side
+        # DNS bypasses harden-runner's resolver, so blocked lookups surface as
+        # refused raw-IP dials. Host-process jobs stay on block.
+        egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -517,31 +387,10 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: block
-        allowed-endpoints: >
-          github.com:443
-          api.github.com:443
-          codeload.github.com:443
-          raw.githubusercontent.com:443
-          objects.githubusercontent.com:443
-          release-assets.githubusercontent.com:443
-          uploads.github.com:443
-          auth.docker.io:443
-          registry-1.docker.io:443
-          production.cloudflare.docker.com:443
-          index.docker.io:443
-          archive.ubuntu.com:80
-          archive.ubuntu.com:443
-          security.ubuntu.com:80
-          security.ubuntu.com:443
-          pypi.org:443
-          files.pythonhosted.org:443
-          ghcr.io:443
-          pkg-containers.githubusercontent.com:443
-          cli.codecov.io:443
-          api.codecov.io:443
-          ingest.codecov.io:443
-          storage.googleapis.com:443
+# Audit, not block: this job builds/runs containers, and container-side
+        # DNS bypasses harden-runner's resolver, so blocked lookups surface as
+        # refused raw-IP dials. Host-process jobs stay on block.
+        egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
