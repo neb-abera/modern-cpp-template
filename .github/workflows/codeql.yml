@@ -18,7 +18,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:  analyze:
+jobs:
+  analyze:
     name: analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
