@@ -60,16 +60,14 @@ jobs:
           cmake --install build/release --prefix "$HOME/.local" --config Release
         '
 
-  # Portability smoke, not a gate: macOS and Windows cannot run the Linux
-  # toolchain container, so these legs build with the runners' native
-  # toolchains (AppleClang, MSVC). They exist to catch gratuitous
-  # non-portability early, and that is all — the container job above is the
-  # merge gate. continue-on-error keeps a red leg here from failing the run;
-  # the job's own check still shows the failure for anyone who looks.
+  # Portability gate: macOS and Windows cannot run the Linux toolchain
+  # container, so these legs build with the runners' native toolchains
+  # (AppleClang, MSVC), warnings as errors — making the suite's
+  # warnings-as-errors claim hold on all three compilers. fail-fast off so
+  # one red leg never hides the other's result.
   portability:
     name: portability smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -415,4 +413,45 @@ jobs:
           cmake --preset bench
           cmake --build --preset bench -j 4
           ./build/bench/bench/tmp_bench --benchmark_min_time=0.01s
+        '
+
+  # The verify.sh checks no dedicated job above covers: strict standard mode,
+  # executable-mode smoke, install-tree purity, the mutation canary and the
+  # required-contexts drift guard. Runs the same script CI's other jobs
+  # mirror, restricted to those checks via VERIFY_CHECKS (release is included
+  # because the strict/install/canary checks read its build tree). This is
+  # what makes the README's "CI gates on the identical suite" claim true.
+  verify-extras:
+    name: verify extras (canary, purity, strict, exe, drift)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        # Audit, not block: this job builds/runs containers, and container-side
+        # DNS bypasses harden-runner's resolver, so blocked lookups surface as
+        # refused raw-IP dials. Host-process jobs stay on block.
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+    - name: build toolchain image
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: run the remaining verify.sh checks in the container
+      run: |
+        docker run --rm -v "$PWD":/src:ro toolchain bash -c '
+          set -e
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          VERIFY_CHECKS="release strict exe install canary contexts" ./scripts/verify.sh
         '

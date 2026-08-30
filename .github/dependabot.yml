@@ -13,6 +13,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait out the first days after a release, when hijacked-package and
+    # broken-release discoveries usually happen, before taking an update.
+    cooldown:
+      default-days: 5
     groups:
       actions-minor-patch:
         applies-to: version-updates
@@ -24,6 +28,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait out the first days after a release, when hijacked-package and
+    # broken-release discoveries usually happen, before taking an update.
+    cooldown:
+      default-days: 5
     groups:
       docker-minor-patch:
         applies-to: version-updates
