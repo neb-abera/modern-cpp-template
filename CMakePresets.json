@@ -64,6 +64,15 @@
       }
     },
     {
+      "name": "bench",
+      "displayName": "Google Benchmark (Release)",
+      "inherits": "release",
+      "cacheVariables": {
+        "Project_ENABLE_BENCHMARKS": "ON",
+        "Project_ENABLE_UNIT_TESTING": "OFF"
+      }
+    },
+    {
       "name": "fuzz",
       "displayName": "libFuzzer + ASan/UBSan (Clang)",
       "inherits": "debug",
@@ -90,6 +99,7 @@
     { "name": "asan", "configurePreset": "asan", "configuration": "Debug" },
     { "name": "tidy", "configurePreset": "tidy", "configuration": "Debug" },
     { "name": "tsan", "configurePreset": "tsan", "configuration": "Debug" },
+    { "name": "bench", "configurePreset": "bench", "configuration": "Release" },
     { "name": "fuzz", "configurePreset": "fuzz", "configuration": "Debug" },
     { "name": "vcpkg", "configurePreset": "vcpkg", "configuration": "Release" }
   ],
