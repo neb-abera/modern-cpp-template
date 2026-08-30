@@ -3,275 +3,139 @@
 
 # Modern C++ Template
 
-This is a modified version of [filipdutescu's modern-cpp-template](https://github.com/filipdutescu/modern-cpp-template/tree/master).
-
-A quick C++ template for modern CMake projects, aimed to be an easy to use
-starting point.
-
-This is my personal take on such a type of template, thus I might not use the
-best practices or you might disagree with how I do things. Any and all feedback
-is greatly appreciated!
+A production-shaped starting point for C++ projects: **C++26** by default,
+**CMake presets**, developed entirely in Docker, gated by a test-driven
+verification suite, and secured by default.
 
 ## Features
 
-* Modern **CMake** configuration and project, which, to the best of my
-knowledge, uses the best practices — targets C++26 by default (configurable
-through the `CXX_STANDARD` option) and installs headers through CMake
-[file sets](https://cmake.org/cmake/help/latest/command/target_sources.html),
+* **Docker-first development** — the host needs only Docker and git. `make
+  shell` opens a toolchain shell (GCC 15, Clang 21, CMake 4.2, clang-format,
+  clang-tidy, Doxygen, ccache, Conan 2, vcpkg — all pinned in the
+  [`Dockerfile`](Dockerfile)); `make verify-docker` runs the whole suite in a
+  fresh container with the source mounted read-only,
 
-* **CMake Presets** (`CMakePresets.json`) providing `debug`, `release`,
-`coverage`, `asan` (Address + UB sanitizers) and `vcpkg` configurations, so
-building is a consistent `cmake --preset <name>` on every platform and in CI,
+* **Modern CMake** — C++26 by default (configurable via the `CXX_STANDARD`
+  option; MSVC auto-clamps to its newest mode until it ships one), headers
+  installed through [file sets](https://cmake.org/cmake/help/latest/command/target_sources.html),
+  library / header-only / executable modes, and
+  [presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html)
+  (`debug`, `release` with LTO, `coverage`, `asan`, `tsan`, `tidy`, `bench`,
+  `fuzz`, `vcpkg`) so building is `cmake --preset <name>` everywhere,
 
-* An example of a **Clang-Format** config, inspired from the base *Google* model,
-with minor tweaks. This is aimed only as a starting point, as coding style
-is a subjective matter, everyone is free to either delete it (for the *LLVM*
-default) or supply their own alternative,
+* **Test-driven by default** — GoogleTest (or Catch2 v3) fetched
+  automatically via `FetchContent` with a system-install fallback, individual
+  cases registered with CTest via `gtest_discover_tests`, and a **mutation
+  canary** proving the tests catch planted bugs,
 
-* **Static analyzers** integration, with *Clang-Tidy* and *Cppcheck*, the former
-being the default option,
+* **One verification suite everywhere** — `make verify` runs eleven checks
+  with a running pass/fail tally: release build+tests (warnings as errors),
+  ASan+UBSan, TSan, clang-tidy, fuzz smoke, benchmark smoke, strict standard
+  mode, executable smoke, install-tree purity, the mutation canary, and
+  clang-format. CI gates on the identical suite **inside the production
+  toolchain container** ("train as you fight"), with advisory macOS/Windows
+  portability smoke builds on native toolchains,
 
-* **Doxygen** support, through the `ENABLE_DOXYGEN` option, which you can enable
-if you wish to use it,
+* **Security by default** — OpenSSF compiler hardening plus the C++26
+  hardened standard library on by default, CodeQL (C++ and workflows) on
+  every PR, Actions pinned to commit SHAs, least-privilege tokens,
+  harden-runner egress control, trivy image scanning, and a SECURITY.md
+  (see it for the full inventory),
 
-* **Unit testing** support, through *GoogleTest* (with an option to enable
-*GoogleMock*) or *Catch2 v3*. The framework is resolved automatically: a
-system-installed copy is used when found, and otherwise it is fetched at
-configure time with `FetchContent` — no manual installation needed, locally
-or in CI. Individual test cases are registered with CTest via
-`gtest_discover_tests`/`catch_discover_tests`,
+* **…and it stays current by machinery, not memory** — every Action and the
+  Docker base image are pinned by commit SHA with a version comment, and
+  Dependabot bumps SHA and comment together, minor/patch grouped into one
+  weekly PR per ecosystem. The `dependabot-automerge` workflow arms
+  auto-merge on every Dependabot PR, majors included; red CI, not update
+  size, is the review signal,
 
-* **Code coverage**, enabled by using the `coverage` preset (or the
-`ENABLE_CODE_COVERAGE` option), uploaded through the *Codecov* CI integration,
+* **Releases from tags** — pushing `v*` builds and tests on all three
+  platforms and publishes packaged install trees (with SBOMs and provenance
+  attestations) to a GitHub Release. Tag confirmed-working milestones so
+  rollback points are named,
 
-* **Package manager support**, with *vcpkg* (manifest mode, see `vcpkg.json`)
-and *Conan 2* (see `conanfile.txt`),
+* **Ccache**, **Doxygen** (published to GitHub Pages on pushes to main), and
+  a devcontainer for one-click IDE setup.
 
-* **CI that gates inside the production toolchain container** using *GitHub
-Actions* — the Linux build/test, sanitizer (**ASan + UBSan**, **TSan**),
-**coverage**, **clang-tidy** and **fuzz-smoke** gates all run inside the
-project's own Docker toolchain image, so every merge gate compiles with the
-exact compilers that ship ("train as you fight"), with builds treating
-**warnings as errors**, plus a **clang-format check** and advisory
-macOS/Windows **portability smoke builds** on native toolchains. An
-automated **release workflow** packages the install tree for all three
-platforms (Linux built in the same container) and publishes a GitHub
-Release on tags,
+## Getting started
 
-* **Dockerized development environment** — a toolchain image pinning every
-compiler and tool the project uses, with `make shell` for day-to-day
-development inside the container and `make verify-docker` for a full
-host-independent verification run, eliminating dependency drift between
-developer machines and deployment servers,
+Generate a repository from this template on GitHub, clone it, then:
 
-* **.md templates** for: *README*, *Contributing Guideliness*,
-*Issues* and *Pull Requests*,
+```bash
+make shell          # toolchain shell: edit on the host, build in the container
+```
 
-* **Permissive license** to allow you to integrate it as easily as possible. The
-template is licensed under the
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) —
-attribution travels in the NOTICE file, and contributors grant the patent
-claims their code necessarily practices,
+```bash
+make verify-docker  # the full verification suite (what CI runs)
+```
 
-* Options to build as a header-only library or executable, not just a static or
-shared library,
+Inside the shell (or on a host with the prerequisites), building is presets
+all the way down:
 
-* **Ccache** integration, for speeding up rebuild times.
+```bash
+cmake --preset release && cmake --build --preset release && ctest --preset release
+```
 
-## Getting Started
+`make help` lists everything else (`test`, `coverage`, `asan`, `bench`,
+`docs`, `format`).
 
-These instructions will get you a copy of the project up and running on your local
-machine for development and testing purposes.
+> ***Note:*** *Don't mix host builds and container builds in the same
+`build/` directory — the CMake cache records absolute compiler paths. If you
+switch between the two, `rm -rf build/` first.*
 
 ### Prerequisites
-
-**The intended development environment is the project's Docker container.**
-Every tool the project needs — GCC 15 and Clang 21, CMake 4.2, clang-format, clang-tidy,
-cppcheck, Doxygen, ccache, Conan 2 and vcpkg — is pinned in the
-[`Dockerfile`](Dockerfile), so every developer (and CI) builds with the same
-toolchain and "works on my machine" dependency drift between workstations and
-deployment servers disappears. For that workflow you only need:
 
 * **Docker** - found at [https://www.docker.com/](https://www.docker.com/)
 * **git**
 
-If you prefer to develop directly on your machine instead, you will need:
+Nothing else for the intended workflow: compilers and every analysis tool run
+inside the container. To develop directly on the host instead you need
+**CMake 3.28+** and **GCC 14+ / Clang 17+** (or MSVC; the standard can be
+lowered to C++17/20/23 via the `<project_name>_CXX_STANDARD` option).
 
-* **CMake v3.28+** - found at [https://cmake.org/](https://cmake.org/)
+## Project layout
 
-* **C++ Compiler** - **GCC 14+** or **Clang 17+** for the default **C++26**
-target. **MSVC** is supported too: it has no C++26 mode yet, so the build
-automatically uses its newest mode (`/std:c++latest`) on that compiler.
-(The standard can be lowered to C++17/20/23 through the
-`<project_name>_CXX_STANDARD` option.)
-
-> ***Note:*** *You also need to be able to provide ***CMake*** a supported
-[generator](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html).*
-
-### Installing
-
-It is fairly easy to install the project, all you need to do is clone if from
-[GitHub](https://github.com/neb-abera/modern-cpp-template) or
-[generate a new repository from it](https://github.com/neb-abera/modern-cpp-template/generate)
-(also on **GitHub**).
-
-If you wish to clone the repository, rather than generate from it, you simply need
-to run:
-
-```bash
-git clone https://github.com/neb-abera/modern-cpp-template/
+```
+include/          public headers, installed via CMake file sets
+src/              implementation and the optional executable entry point
+test/             GoogleTest suite, registered per-case with CTest
+bench/            Google Benchmark harness (`bench` preset)
+fuzz/             libFuzzer harness built with ASan+UBSan (`fuzz` preset)
+cmake/            StandardSettings, CompilerWarnings, analyzers, install glue
+scripts/          verify.sh / verify-docker.sh / setup.sh
+Dockerfile        the pinned toolchain image CI and `make shell` share
+.github/          CI, CodeQL, Docs and Release workflows (SHA-pinned), Dependabot
 ```
 
-After getting your copy (either way), one command finishes the setup — it
-renames the project after your repository (CMake project name and option
-prefix, the `*Config.cmake.in` file, presets, Makefile, the include
-directory and every `#include` of it, and the README badge/links) and
-enables the repo-level GitHub settings templates cannot carry over (secret
-scanning, push protection, private vulnerability reporting, Dependabot
-alerts + security updates, and branch protection requiring the gating CI
-checks):
+## Development workflow
 
-```bash
-./scripts/setup.sh
-```
+1. Write a failing test in `test/` (or a fuzz/bench target when that layer
+   owns the behavior).
+2. `make shell` and implement until the test passes.
+3. `make verify-docker` before pushing — CI gates on the identical suite, so
+   a local green run predicts the PR gate.
+4. When a milestone is confirmed working, tag it (`git tag v1.2.0 && git
+   push origin v1.2.0`) to publish a release ([SemVer](http://semver.org/)).
 
-Dependencies then stay current by machinery, not memory: every Action and
-the Docker base image are pinned by commit SHA with a version comment, and
-Dependabot bumps SHA and comment together — minor/patch grouped into one
-weekly PR per ecosystem. The `dependabot-automerge` workflow arms auto-merge
-on every Dependabot PR, majors included; red CI, not update size, is the
-review signal. It needs the repository's Allow auto-merge setting plus a
-`DEPENDABOT_AUTOMERGE_TOKEN` secret (fine-grained PAT, contents + pull
-requests write — a PAT so the merge still triggers workflows, which
-`GITHUB_TOKEN` merges do not); until both exist it warns and does nothing.
-
-It needs the [GitHub CLI](https://cli.github.com) authenticated as a repo
-admin, and it is safe to re-run.
-
-To install an already built project, you need to run:
-
-```bash
-cmake --install build/release --prefix /absolute/path/to/custom/install/directory
-```
-
-## Building the project
-
-### In Docker (recommended)
-
-Open a development shell inside the toolchain container — the image is built
-automatically the first time (cached afterwards) and your checkout is mounted
-at `/work`, so you edit files on your machine with your normal editor and
-build/test inside the container:
-
-```bash
-make shell
-```
-
-Everything below (presets, tests, docs, verification) works identically inside
-that shell. The container is removed when you exit; only the image persists.
-
-> ***Note:*** *Don't mix host builds and container builds in the same `build/`
-directory — the CMake cache records absolute compiler paths. If you switch
-between the two, `rm -rf build/` first.*
-
-You can also run the full verification suite non-interactively in a fresh
-container (source mounted read-only, checkout never touched):
-
-```bash
-make verify-docker
-```
-
-### The build itself
-
-The project ships with [CMake presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html),
-so building is the same everywhere — inside the container or on a host with
-the prerequisites installed:
-
-```bash
-cmake --preset release        # configure (see `cmake --list-presets` for more)
-cmake --build --preset release
-```
-
-Available configure presets are `debug`, `release`, `coverage`, `asan` and
-`vcpkg`; each writes its build tree to `build/<preset>`. You can still use the
-classic `cmake -B build ...` workflow if you prefer, and personal overrides
-belong in a (git-ignored) `CMakeUserPresets.json`.
-
-More options that you can set for the project can be found in the
-[`cmake/StandardSettings.cmake` file](cmake/StandardSettings.cmake).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the pull-request process.
 
 ### Dependencies (package managers)
 
-Dependencies can be consumed through either of two package managers, both using
-the standard `find_package`/`target_link_libraries` flow in `CMakeLists.txt`:
+Both package managers use the standard `find_package`/`target_link_libraries`
+flow in `CMakeLists.txt`:
 
-* **vcpkg (manifest mode):** add your dependencies to [`vcpkg.json`](vcpkg.json),
-set the `VCPKG_ROOT` environment variable to your [vcpkg](https://github.com/microsoft/vcpkg)
-checkout and configure with the `vcpkg` preset:
+* **vcpkg (manifest mode):** add dependencies to [`vcpkg.json`](vcpkg.json),
+  point `VCPKG_ROOT` at a [vcpkg](https://github.com/microsoft/vcpkg)
+  checkout, and configure with `cmake --preset vcpkg`.
+* **Conan 2:** add dependencies to [`conanfile.txt`](conanfile.txt); both the
+  [cmake-conan](https://github.com/conan-io/cmake-conan) provider and plain
+  `conan install` flows are documented at the top of that file.
 
-```bash
-cmake --preset vcpkg
-```
-
-* **Conan 2:** add your dependencies to [`conanfile.txt`](conanfile.txt), then
-either use the [cmake-conan](https://github.com/conan-io/cmake-conan) dependency
-provider or run `conan install` yourself — both are documented at the top of
-`conanfile.txt`.
-
-## Generating the documentation
-
-In order to generate documentation for the project, you need to configure the build
-to use Doxygen. This is easily done, by modifying the workflow shown above as follows:
+### Documentation
 
 ```bash
-cmake --preset release -D<project_name>_ENABLE_DOXYGEN=1
-cmake --build --preset release --target doxygen-docs
+make docs     # Doxygen into docs/html; CI publishes it to GitHub Pages on main
 ```
-
-> ***Note:*** *This will generate a `docs/` directory in the **project's root directory**.*
-
-## Running the tests
-
-By default, the template uses [GoogleTest](https://github.com/google/googletest/)
-for unit testing (with [Catch2 v3](https://github.com/catchorg/Catch2) available
-through the `USE_CATCH2` option). The framework is downloaded automatically at
-configure time if it is not already installed. Unit testing can be disabled in
-the options, by setting the `ENABLE_UNIT_TESTING` option (from
-[cmake/StandardSettings.cmake](cmake/StandardSettings.cmake)) to false.
-
-To run the tests, use CTest through the matching test preset:
-
-```bash
-ctest --preset release
-```
-
-To run the **full verification suite** — clean release build with
-warnings-as-errors, tests under sanitizers, strict-standard-mode check,
-executable smoke test, install-tree purity, a mutation canary proving the
-tests catch planted bugs, and a clang-format check — with a running pass/fail
-tally and a final summary:
-
-```bash
-make verify        # or directly: ./scripts/verify.sh
-```
-
-To run the same suite **inside a Docker container** — so results do not depend
-on the compilers, CMake or clang-format versions installed on your machine —
-use the project's toolchain image (built automatically from the
-[`Dockerfile`](Dockerfile) on first run; the source tree is mounted read-only,
-so your checkout is never touched):
-
-```bash
-make verify-docker # or directly: ./scripts/verify-docker.sh
-```
-
-### End to end tests
-
-If applicable, should be presented here.
-
-### Coding style tests
-
-If applicable, should be presented here.
 
 ## Where the practices come from
 
@@ -305,26 +169,31 @@ What a linter cannot check — naming things well, small functions, honest
 tests (*Code Complete*, *Clean Code*, *Refactoring*) — is what the mutation
 canary, the test-first workflow and code review are for.
 
-## Contributing
+## After generating from this template
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our how you can
-become a contributor and the process for submitting pull requests to us.
+One command finishes the setup — it renames the project after your
+repository (CMake project name and option prefix, the `*Config.cmake.in`
+file, presets, Makefile, the include directory and every `#include` of it,
+and the README badge/links) and enables the repo-level GitHub settings
+templates cannot carry over (secret scanning, push protection, private
+vulnerability reporting, Dependabot alerts + security updates, GitHub Pages,
+and branch protection requiring the gating CI checks):
 
-## Versioning
+```bash
+./scripts/setup.sh
+```
 
-This project makes use of [SemVer](http://semver.org/) for versioning. A list of
-existing versions can be found in the
-[project's releases](https://github.com/neb-abera/modern-cpp-template/releases).
-Pushing a `v*` tag triggers the release workflow, which builds and tests on all
-three platforms and publishes packaged install trees to a GitHub Release.
-
-## Authors
-
-* **Filip-Ioan Dutescu** - [@filipdutescu](https://github.com/filipdutescu)
+It needs the [GitHub CLI](https://cli.github.com) authenticated as a repo
+admin, and it is safe to re-run. The `dependabot-automerge` workflow
+additionally needs the repository's Allow auto-merge setting plus a
+`DEPENDABOT_AUTOMERGE_TOKEN` secret (fine-grained PAT, contents + pull
+requests write — a PAT so the merge still triggers workflows, which
+`GITHUB_TOKEN` merges do not); until both exist it warns and does nothing.
 
 ## License
 
 This project is licensed under the
 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) — see the
 [LICENSE](LICENSE) file. Keep the [NOTICE](NOTICE) file's attribution with
-any copies
+any copies. It began as a modified version of
+[filipdutescu's modern-cpp-template](https://github.com/filipdutescu/modern-cpp-template).
