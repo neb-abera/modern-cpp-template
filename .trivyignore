@@ -1,0 +1,17 @@
+# Accepted findings for the toolchain container image scan (security-scan.yml).
+# Each entry needs a reason and a revisit condition; see also SECURITY.md's
+# "Known scanner findings (accepted)" section.
+
+# pip's vendored msgpack 1.1.2 (pip 26.2.1, pipx shared venv at
+# /home/ubuntu/.local/share/pipx/shared/.../pip/_vendor). Used only by pip
+# internally during installs; nothing this project builds imports or links
+# it, and the conan venv's real msgpack is upgraded past this (1.2.2).
+# Not fixable here: pip pins its vendored set. Revisit when pip re-vendors.
+GHSA-6v7p-g79w-8964
+
+# pip's vendored setuptools 70.3.0, same vendored set as above. The CVE is a
+# path traversal in setuptools' PackageIndex, which pip's internal use never
+# exercises; the conan venv's real setuptools is upgraded at image build
+# time. Not fixable here: pip pins its vendored set. Revisit when pip
+# re-vendors.
+CVE-2025-47273

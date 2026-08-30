@@ -21,7 +21,7 @@ concurrency:
 jobs:
   analyze:
     name: analyze (${{ matrix.language }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       security-events: write
@@ -30,10 +30,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The C++ leg runs on the ubuntu-26.04 runner image: same distro
+          # and default GCC major (15) as the toolchain container, so CodeQL
+          # observes the build CI actually gates on. Residual deviation from
+          # "train as you fight": CodeQL traces the build on the bare runner,
+          # not inside the container — its build tracer cannot follow a
+          # docker-run build without disproportionate contortions, and distro
+          # + compiler major + the same preset flags close most of the gap.
           - language: c-cpp
             build-mode: manual
+            runner: ubuntu-26.04
           - language: actions
             build-mode: none
+            runner: ubuntu-latest
 
     steps:
     - name: harden runner
@@ -57,18 +66,20 @@ jobs:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
 
-    # C++ needs a real build for CodeQL to observe; same toolchain as CI.
-    - name: select GCC 14
+    # C++ needs a real build for CodeQL to observe. The runner's default
+    # g++ is GCC 15, the same major the toolchain container gates with; the
+    # assertion makes a runner-image compiler change fail loudly here rather
+    # than silently drift the analyzed build away from the gated one.
+    - name: assert GCC 15 (same major as the toolchain container)
       if: matrix.language == 'c-cpp'
       run: |
-        sudo apt-get update && sudo apt-get install -y g++-14
-        echo "CC=gcc-14" >> "$GITHUB_ENV"
-        echo "CXX=g++-14" >> "$GITHUB_ENV"
+        g++ --version
+        g++ -dumpversion | grep -qx '15' || { echo "expected GCC major 15"; exit 1; }
 
     - name: build
       if: matrix.language == 'c-cpp'
       run: |
-        cmake --preset release
+        cmake --preset release -DProject_WARNINGS_AS_ERRORS=ON
         cmake --build --preset release -j 4
 
     - name: perform CodeQL analysis

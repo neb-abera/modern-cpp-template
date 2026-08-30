@@ -28,13 +28,14 @@ verification suite, and secured by default.
   cases registered with CTest via `gtest_discover_tests`, and a **mutation
   canary** proving the tests catch planted bugs,
 
-* **One verification suite everywhere** — `make verify` runs eleven checks
+* **One verification suite everywhere** — `make verify` runs twelve checks
   with a running pass/fail tally: release build+tests (warnings as errors),
   ASan+UBSan, TSan, clang-tidy, fuzz smoke, benchmark smoke, strict standard
-  mode, executable smoke, install-tree purity, the mutation canary, and
-  clang-format. CI gates on the identical suite **inside the production
-  toolchain container** ("train as you fight"), with advisory macOS/Windows
-  portability smoke builds on native toolchains,
+  mode, executable smoke, install-tree purity (LICENSE and NOTICE included),
+  the mutation canary, a required-contexts drift guard, and clang-format. CI
+  gates on the identical suite **inside the production toolchain container**
+  ("train as you fight"), plus gating macOS/Windows portability builds on
+  native toolchains — warnings as errors on all three compilers,
 
 * **Security by default** — OpenSSF compiler hardening plus the C++26
   hardened standard library on by default, CodeQL (C++ and workflows) on
@@ -102,9 +103,9 @@ test/             GoogleTest suite, registered per-case with CTest
 bench/            Google Benchmark harness (`bench` preset)
 fuzz/             libFuzzer harness built with ASan+UBSan (`fuzz` preset)
 cmake/            StandardSettings, CompilerWarnings, analyzers, install glue
-scripts/          verify.sh / verify-docker.sh / setup.sh
+scripts/          verify.sh / verify-docker.sh / setup.sh / check-required-contexts.sh
 Dockerfile        the pinned toolchain image CI and `make shell` share
-.github/          CI, CodeQL, Docs and Release workflows (SHA-pinned), Dependabot
+.github/          CI, CodeQL, Security scan, Docs and Release workflows (SHA-pinned), Dependabot
 ```
 
 ## Development workflow
