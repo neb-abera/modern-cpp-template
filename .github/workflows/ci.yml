@@ -51,9 +51,12 @@ jobs:
         cache-to: type=gha,mode=max
 
     # Source mounted read-only and copied inside, as in verify-docker.sh, so
-    # the checkout is never modified by the container.
+    # the checkout is never modified by the container. tee keeps the terminal
+    # output unchanged while giving the summary step below a log to parse
+    # (pipefail so the container's exit code still fails the step).
     - name: build, test and install in the container
       run: |
+        set -o pipefail
         docker run --rm -v "$PWD":/src:ro toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
@@ -61,7 +64,21 @@ jobs:
           cmake --build --preset release -j 4
           ctest --preset release
           cmake --install build/release --prefix "$HOME/.local" --config Release
-        '
+        ' | tee ci-build-test.log
+
+    # Parses the ctest summary line already in the log — never re-runs tests.
+    - name: append test totals to the job summary
+      run: |
+        [ -n "${GITHUB_STEP_SUMMARY:-}" ] || exit 0
+        total=$(grep -E 'tests passed.*out of [0-9]+' ci-build-test.log | grep -Eo 'out of [0-9]+' | awk '{print $3}' | tail -1)
+        failed=$(grep -Eo '[0-9]+ tests failed out of' ci-build-test.log | awk '{print $1}' | tail -1)
+        failed=${failed:-0}
+        [ -n "${total:-}" ] || exit 0
+        {
+          echo "### Build & test (toolchain container)"
+          echo ""
+          echo "ctest: **$((total - failed)) passed / ${failed} failed** (of ${total} tests)"
+        } >> "$GITHUB_STEP_SUMMARY"
 
   # Portability gate: macOS and Windows cannot run the Linux toolchain
   # container, so these legs build with the runners' native toolchains
@@ -126,13 +143,22 @@ jobs:
 
     - name: run tests under ASan + UBSan in the container
       run: |
+        set -o pipefail
         docker run --rm -v "$PWD":/src:ro toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
           cmake --preset asan -DProject_WARNINGS_AS_ERRORS=ON
           cmake --build --preset asan -j 4
           ctest --preset asan
-        '
+        ' | tee ci-asan.log
+
+    # A sanitizer finding fails ctest, so reaching this step means zero
+    # findings; the count comes from the ctest line already in the log.
+    - name: append sanitizer summary
+      run: |
+        [ -n "${GITHUB_STEP_SUMMARY:-}" ] || exit 0
+        total=$(grep -E 'tests passed.*out of [0-9]+' ci-asan.log | grep -Eo 'out of [0-9]+' | awk '{print $3}' | tail -1)
+        echo "### Sanitizers (ASan + UBSan): ${total:-?} tests, 0 sanitizer findings" >> "$GITHUB_STEP_SUMMARY"
 
   coverage:
     name: coverage
@@ -178,6 +204,7 @@ jobs:
     # measures).
     - name: build, test and generate coverage in the container
       run: |
+        set -o pipefail
         mkdir -p coverage-out && chmod 777 coverage-out
         docker run --rm -v "$PWD":/src:ro -v "$PWD/coverage-out":/out toolchain bash -c '
           set -e
@@ -190,7 +217,15 @@ jobs:
           find build/coverage -type f -name "*.gcno" -exec gcov -pb {} +
           sed -i "s|$HOME/project/||g" ./*.gcov
           cp ./*.gcov /out/
-        '
+        ' | tee ci-coverage.log
+
+    # Parses gcovr's own --print-summary line already in the log.
+    - name: append coverage summary
+      run: |
+        [ -n "${GITHUB_STEP_SUMMARY:-}" ] || exit 0
+        pct=$(grep -E '^lines:' ci-coverage.log | grep -Eo '[0-9]+(\.[0-9]+)?%' | head -1)
+        [ -n "${pct:-}" ] || exit 0
+        echo "### Coverage: line coverage **${pct}** (gate: >= 90%)" >> "$GITHUB_STEP_SUMMARY"
 
     - name: upload coverage to Codecov
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -362,13 +397,22 @@ jobs:
 
     - name: run tests under TSan in the container
       run: |
+        set -o pipefail
         docker run --rm -v "$PWD":/src:ro toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
           cmake --preset tsan -DProject_WARNINGS_AS_ERRORS=ON
           cmake --build --preset tsan -j 4
           ctest --preset tsan
-        '
+        ' | tee ci-tsan.log
+
+    # A data-race finding fails ctest, so reaching this step means zero
+    # findings; the count comes from the ctest line already in the log.
+    - name: append sanitizer summary
+      run: |
+        [ -n "${GITHUB_STEP_SUMMARY:-}" ] || exit 0
+        total=$(grep -E 'tests passed.*out of [0-9]+' ci-tsan.log | grep -Eo 'out of [0-9]+' | awk '{print $3}' | tail -1)
+        echo "### Thread sanitizer (TSan): ${total:-?} tests, 0 sanitizer findings" >> "$GITHUB_STEP_SUMMARY"
 
   # clang-tidy: the C++ Core Guidelines and SEI CERT checks as a gate. Runs
   # in the project toolchain image so the clang-tidy version matches local
@@ -553,10 +597,21 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    # verify.sh writes its own markdown tally when GITHUB_STEP_SUMMARY is
+    # set; point it at a writable host mount (the runner's real summary file
+    # is not writable by the container user) and append it afterwards.
     - name: run the remaining verify.sh checks in the container
       run: |
-        docker run --rm -v "$PWD":/src:ro toolchain bash -c '
+        mkdir -p verify-out && chmod 777 verify-out
+        docker run --rm -v "$PWD":/src:ro -v "$PWD/verify-out":/out \
+          -e GITHUB_STEP_SUMMARY=/out/step-summary.md toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
           VERIFY_CHECKS="release strict exe install canary contexts" ./scripts/verify.sh
         '
+
+    - name: append verify tally to the job summary
+      run: |
+        [ -n "${GITHUB_STEP_SUMMARY:-}" ] || exit 0
+        [ -f verify-out/step-summary.md ] || exit 0
+        cat verify-out/step-summary.md >> "$GITHUB_STEP_SUMMARY"
