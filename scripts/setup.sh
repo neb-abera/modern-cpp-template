@@ -140,5 +140,17 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
 JSON
 done_ "gating CI checks required, strict, enforced for admins"
 
+#
+# 4. GitHub Pages for the Doxygen docs (docs.yml deploys on pushes)
+#
+
+step "Enabling GitHub Pages (built by Actions)"
+if gh api -X POST "repos/$owner_repo/pages" -f build_type=workflow > /dev/null 2>&1 \
+   || gh api -X PUT "repos/$owner_repo/pages" -f build_type=workflow > /dev/null 2>&1; then
+  done_ "Pages enabled; API docs deploy from docs.yml"
+else
+  warn "could not enable Pages automatically; enable it under Settings -> Pages -> Source: GitHub Actions"
+fi
+
 printf '\n%sSetup complete.%s Every future change now goes through a PR gated on the six
 CI checks. Verify the renamed project with: make verify-docker\n' "$BOLD" "$RESET"

@@ -1,0 +1,19 @@
+{
+  "name": "cpp-toolchain",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "ubuntu",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cmake-tools"
+      ],
+      "settings": {
+        "cmake.useCMakePresets": "always"
+      }
+    }
+  }
+}

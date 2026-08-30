@@ -29,7 +29,7 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=10
+CHECKS_TOTAL=11
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -146,6 +146,17 @@ else
   fi
 fi
 
+banner "Benchmark harness builds and runs"
+rm -rf build/bench
+if cmake --preset bench > "$LOG" 2>&1 \
+   && cmake --build --preset bench -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1 \
+   && ./build/bench/bench/tmp_bench --benchmark_min_time=0.01s > "$LOG" 2>&1; then
+  pass "Benchmark harness: builds and completes a run"
+else
+  tail -20 "$LOG"
+  fail "Benchmark harness"
+fi
+
 banner "Strict C++ standard mode"
 flag=$(grep -rho '\-std=[^ ]*' build/release/CMakeFiles/*.dir/flags.make 2>/dev/null | sort -u | head -1)
 if printf '%s' "$flag" | grep -q '^-std=c++'; then
@@ -207,7 +218,7 @@ fi
 banner "clang-format check"
 if command -v clang-format > /dev/null; then
   if (shopt -s nullglob globstar 2>/dev/null;
-      clang-format --dry-run --Werror src/**/*.cpp include/**/*.hpp test/**/*.cpp > "$LOG" 2>&1); then
+      clang-format --dry-run --Werror src/**/*.cpp include/**/*.hpp test/**/*.cpp fuzz/**/*.cpp bench/**/*.cpp > "$LOG" 2>&1); then
     pass "Sources are clang-format clean"
   else
     tail -20 "$LOG"

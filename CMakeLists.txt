@@ -334,6 +334,13 @@ endif()
 # Fuzzing setup
 #
 
+if(${PROJECT_NAME}_ENABLE_BENCHMARKS)
+  if(${PROJECT_NAME}_BUILD_EXECUTABLE)
+    message(FATAL_ERROR "Benchmark targets link the library; configure without ${PROJECT_NAME}_BUILD_EXECUTABLE (the `bench` preset does).")
+  endif()
+  add_subdirectory(bench)
+endif()
+
 if(${PROJECT_NAME}_ENABLE_FUZZING)
   if(${PROJECT_NAME}_BUILD_EXECUTABLE)
     message(FATAL_ERROR "Fuzz targets link the library; configure without ${PROJECT_NAME}_BUILD_EXECUTABLE (the `fuzz` preset does).")

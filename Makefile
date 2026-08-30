@@ -1,4 +1,4 @@
-.PHONY: install coverage test asan verify verify-docker shell docs format help
+.PHONY: install coverage test asan bench verify verify-docker shell docs format help
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -43,6 +43,11 @@ coverage: ## check code coverage with GCC/Clang
 	cmake --build --preset coverage
 	ctest --preset coverage
 	find build/coverage -type f -name '*.gcno' -exec gcov -pb {} +
+
+bench: ## build and run the Google Benchmark targets
+	cmake --preset bench
+	cmake --build --preset bench
+	./build/bench/bench/tmp_bench
 
 verify: ## run the full verification suite with a pass/fail tally
 	./scripts/verify.sh
