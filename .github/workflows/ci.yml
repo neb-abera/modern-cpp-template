@@ -169,6 +169,13 @@ jobs:
     # Dockerfile. The .gcov files are written to a world-writable host mount
     # (the source itself stays read-only), with the container-local prefix
     # stripped so Codecov maps them to repository paths.
+    #
+    # gcovr enforces the line-coverage floor inside this required check:
+    # the Codecov statuses (codecov.yaml) are separate, non-required
+    # contexts, so without --fail-under-line this job would stay green at
+    # any coverage level. 90 leaves headroom under the template's own 100%
+    # (src/ + include/, tests excluded — the same scope codecov.yaml
+    # measures).
     - name: build, test and generate coverage in the container
       run: |
         mkdir -p coverage-out && chmod 777 coverage-out
@@ -178,6 +185,8 @@ jobs:
           cmake --preset coverage -DProject_WARNINGS_AS_ERRORS=ON
           cmake --build --preset coverage -j 4
           ctest --preset coverage
+          gcovr -r . --filter "src/" --filter "include/" \
+            --print-summary --fail-under-line 90 build/coverage
           find build/coverage -type f -name "*.gcno" -exec gcov -pb {} +
           sed -i "s|$HOME/project/||g" ./*.gcov
           cp ./*.gcov /out/
@@ -434,15 +443,37 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    # Seeded from the committed regression corpus (fuzz/corpus/<target>/):
+    # the seeds cover the parse paths and every previously fixed crash, so
+    # the short smoke starts from known-interesting inputs instead of
+    # rediscovering them. New inputs the run finds go to a container-local
+    # scratch dir (first corpus argument) and are discarded; crash inputs
+    # land on the host mount via -artifact_prefix so they survive the run.
     - name: build and smoke-run the fuzz target
       run: |
-        docker run --rm -v "$PWD":/src:ro toolchain bash -c '
+        mkdir -p fuzz-findings && chmod 777 fuzz-findings
+        docker run --rm -v "$PWD":/src:ro -v "$PWD/fuzz-findings":/findings toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
           cmake --preset fuzz
           cmake --build --preset fuzz -j 4
-          ./build/fuzz/fuzz/tmp_fuzz -max_total_time=15
+          mkdir -p build/fuzz/corpus
+          ./build/fuzz/fuzz/tmp_fuzz -max_total_time=15 -artifact_prefix=/findings/ \
+            build/fuzz/corpus fuzz/corpus/tmp_fuzz
         '
+
+    # Without this upload a CI-discovered crash dies with the runner and
+    # cannot be reproduced or committed to the corpus. Retrieve the input
+    # from the artifact, fix the bug, and commit the input to
+    # fuzz/corpus/<target>/ so the fix can never regress silently.
+    - name: retain crash inputs
+      if: failure()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: fuzz-crash-artifacts
+        path: fuzz-findings/
+        if-no-files-found: ignore
+        retention-days: 30
 
   # Benchmarks are a harness, not a timing gate: shared runners make numbers
   # noise, so CI only proves the harness builds and completes a run.

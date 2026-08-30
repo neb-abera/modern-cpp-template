@@ -131,6 +131,13 @@ jobs:
         # refused raw-IP dials. Host-process jobs stay on block.
         egress-policy: audit
 
+    # The checkout provides the Dockerfile for the toolchain-image SBOM
+    # below. It must come before the artifact download: checkout's default
+    # clean would delete a pre-existing artifacts/ directory.
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
     # Only the packaged install trees: docker/build-push-action auto-uploads
     # a *.dockerbuild build-record artifact that must not reach the release,
     # the SBOMs or the attestation.
@@ -150,6 +157,12 @@ jobs:
     # Extract each archive first and scan the directory: syft cannot unpack
     # Windows Compress-Archive zips itself (their directory entries carry no
     # permission bits, so its extraction mkdir fails).
+    #
+    # Honest scope note: these per-artifact SBOMs cover ONLY what ships
+    # inside each archive — an install tree of this project's own headers,
+    # libraries and license files, with no third-party packages — so they
+    # are small by construction. The toolchain-image SBOM generated below is
+    # the one that names the third-party software involved in the build.
     - name: generate SBOMs
       run: |
         set -euo pipefail
@@ -165,6 +178,35 @@ jobs:
           rm -rf "$d"
         done
         ls -la artifacts/
+
+    # SBOM of the toolchain container image: every OS package, compiler and
+    # tool in the environment the Linux artifact was built in ("train as
+    # you fight" — this is the same image CI gates on). This is the
+    # substantive dependency inventory for CVE matching; the per-artifact
+    # SBOMs above cover the shipped bits, this one covers what built them.
+    # Same Dockerfile and GHA layer cache as the build job, so this rebuild
+    # resolves to cached layers rather than a second full build.
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+    - name: build toolchain image
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # Written into artifacts/ before the attestation step, so the image
+    # SBOM is a provenance-covered subject and a release asset like the
+    # rest. syft comes from the pinned anchore/sbom-action download above.
+    - name: generate toolchain image SBOM
+      env:
+        TAG: ${{ github.ref_name }}
+      run: |
+        syft scan docker:toolchain --source-name "${PROJECT_NAME}-toolchain-image" \
+          -o spdx-json > "artifacts/${PROJECT_NAME}-${TAG}-toolchain-image-sbom.spdx.json"
 
     # SBOMs are generated before this step on purpose, so they are attested
     # subjects too (artifacts/* includes the *.spdx.json files here).

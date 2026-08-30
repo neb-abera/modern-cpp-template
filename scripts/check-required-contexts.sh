@@ -9,8 +9,9 @@
 # Scope: ci.yml and security-scan.yml — the workflows whose jobs are merge
 # gates. Deliberately excluded: codeql.yml (enforced by GitHub code
 # scanning, not a status-check context), docs.yml (a build preview, not a
-# gate), dependabot-automerge.yml (automation, produces no gate), and the
-# push/tag-only workflows (scorecard, release).
+# gate), dependabot-automerge.yml (automation, produces no gate), the
+# push/tag-only workflows (scorecard, release), and the scheduled-only
+# fetchcontent-upgrade.yml (opens PRs, gates nothing).
 #
 # Exit codes: 0 = in sync, 1 = drift, 2 = python3/PyYAML unavailable (the
 # caller may treat this as a skip; the toolchain container always has both).
