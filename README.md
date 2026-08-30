@@ -48,12 +48,16 @@ verification suite, and secured by default.
   Dependabot bumps SHA and comment together, minor/patch grouped into one
   weekly PR per ecosystem. The `dependabot-automerge` workflow arms
   auto-merge on every Dependabot PR, majors included; red CI, not update
-  size, is the review signal,
+  size, is the review signal. The FetchContent pins (googletest/Catch2,
+  Google Benchmark) sit outside every Dependabot ecosystem, so the monthly
+  `fetchcontent-upgrade` workflow moves them to the latest releases and
+  opens the PR itself,
 
 * **Releases from tags** — pushing `v*` builds and tests on all three
-  platforms and publishes packaged install trees (with SBOMs and provenance
-  attestations) to a GitHub Release. Tag confirmed-working milestones so
-  rollback points are named,
+  platforms and publishes packaged install trees to a GitHub Release, with
+  provenance attestations and SBOMs: one per shipped archive (its contents)
+  and one of the toolchain container image (the full build environment).
+  Tag confirmed-working milestones so rollback points are named,
 
 * **Ccache**, **Doxygen** (published to GitHub Pages on pushes to main), and
   a devcontainer for one-click IDE setup.
@@ -163,8 +167,11 @@ is not a failing check decays, so each source is wired to one:
   `bench` preset; a harness rather than a timing gate, because shared CI
   runners make numbers noise — CI proves it builds and runs,
 * **fuzzing** — a libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
-  via the `fuzz` preset; CI smoke-runs it, and the harness is where a real
-  project points the fuzzer at its parsers and input paths.
+  via the `fuzz` preset; CI smoke-runs it seeded from the committed
+  regression corpus (`fuzz/corpus/<target>/`) and uploads any crash input
+  as a CI artifact. A fixed crash gets its input committed to the corpus,
+  so every later run replays it as a regression test. The harness is where
+  a real project points the fuzzer at its parsers and input paths.
 
 What a linter cannot check — naming things well, small functions, honest
 tests (*Code Complete*, *Clean Code*, *Refactoring*) — is what the mutation

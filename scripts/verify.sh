@@ -163,9 +163,12 @@ if ! command -v clang++ > /dev/null; then
   skip "Fuzz smoke (clang++ not installed; libFuzzer needs Clang)"
 else
   rm -rf build/fuzz
+  # Seeded from the committed regression corpus; new inputs go to a
+  # build-tree scratch dir so the committed seeds are never mutated.
   if cmake --preset fuzz > "$LOG" 2>&1 \
      && cmake --build --preset fuzz -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1 \
-     && ./build/fuzz/fuzz/tmp_fuzz -max_total_time=5 > "$LOG" 2>&1; then
+     && mkdir -p build/fuzz/corpus \
+     && ./build/fuzz/fuzz/tmp_fuzz -max_total_time=5 build/fuzz/corpus fuzz/corpus/tmp_fuzz > "$LOG" 2>&1; then
     runs=$(grep -Eo 'Done [0-9]+ runs' "$LOG" | grep -Eo '[0-9]+' | head -1)
     echo "fuzzer executed ${runs:-?} inputs without a crash"
     pass "Fuzz smoke: no crashes under coverage-guided input"
