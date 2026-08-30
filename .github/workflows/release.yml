@@ -21,6 +21,7 @@ jobs:
   build:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -37,6 +38,8 @@ jobs:
         egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     # The Linux release artifact is built inside the project's own toolchain
     # image, the same one development and CI gating use ("train as you
@@ -112,6 +115,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: build
     permissions:
       contents: write
@@ -162,10 +166,24 @@ jobs:
         done
         ls -la artifacts/
 
+    # SBOMs are generated before this step on purpose, so they are attested
+    # subjects too (artifacts/* includes the *.spdx.json files here).
     - name: attest artifact provenance
+      id: attest
       uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
       with:
         subject-path: artifacts/*
+
+    # The attestation lives in GitHub's attestation store, but Scorecard's
+    # Signed-Releases check (and offline verifiers) look at the release
+    # assets themselves — so ship the Sigstore bundle as a release asset
+    # under a stable per-release name. The *.intoto.jsonl suffix is the
+    # convention Scorecard recognizes as provenance.
+    - name: add provenance bundle to the release assets
+      env:
+        BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        TAG: ${{ github.ref_name }}
+      run: cp "$BUNDLE" "artifacts/${PROJECT_NAME}-${TAG}.intoto.jsonl"
 
     - name: create release
       env:
