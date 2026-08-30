@@ -2,10 +2,12 @@ ignore:
   - "test"
 
 # Codecov-side status checks. These are not required branch-protection
-# contexts (the required "coverage" check is the CI job that builds and
-# uploads), so a miss shows red on the PR without blocking the merge —
-# honest signal, moderate enforcement. The template's own coverage is 100%;
-# thresholds leave room for real projects generated from it.
+# contexts, so a miss here shows red on the PR without blocking the merge.
+# The blocking floor lives in the required "coverage" CI job itself, which
+# fails below 90% line coverage via gcovr --fail-under-line — these Codecov
+# targets mirror that floor and add the trend/patch signal on top. The
+# template's own coverage is 100%; thresholds leave room for real projects
+# generated from it.
 coverage:
   status:
     project:
