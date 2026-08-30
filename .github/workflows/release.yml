@@ -129,6 +129,19 @@ jobs:
 
     # SLSA build provenance for the packaged install trees; consumers verify
     # with 'gh attestation verify <file> --repo <owner>/<repo>'.
+    # SPDX SBOM per artifact: what exactly is inside each shipped archive.
+    - name: install syft
+      uses: anchore/sbom-action/download-syft@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+
+    - name: generate SBOMs
+      run: |
+        set -euo pipefail
+        for f in artifacts/*; do
+          case "$f" in *.spdx.json) continue;; esac
+          syft scan "file:$f" -o spdx-json > "$f.spdx.json"
+        done
+        ls -la artifacts/
+
     - name: attest artifact provenance
       uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
       with:

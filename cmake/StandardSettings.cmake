@@ -124,6 +124,8 @@ if(${PROJECT_NAME}_ENABLE_UBSAN AND NOT MSVC)
   add_link_options(-fsanitize=undefined)
 endif()
 
+option(${PROJECT_NAME}_ENABLE_BENCHMARKS "Build Google Benchmark targets from the `bench` directory (use the `bench` preset)." OFF)
+
 option(${PROJECT_NAME}_ENABLE_FUZZING "Build libFuzzer targets from the `fuzz` directory (Clang only; use the `fuzz` preset)." OFF)
 
 option(${PROJECT_NAME}_ENABLE_TSAN "Enable ThreadSanitizer to detect data races (GCC/Clang only; incompatible with ASan)." OFF)

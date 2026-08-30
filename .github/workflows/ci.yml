@@ -190,7 +190,7 @@ jobs:
     - name: check formatting
       run: |
         shopt -s nullglob globstar
-        clang-format --dry-run --Werror src/**/*.cpp include/**/*.hpp test/**/*.cpp
+        clang-format --dry-run --Werror src/**/*.cpp include/**/*.hpp test/**/*.cpp fuzz/**/*.cpp bench/**/*.cpp
 
   # Flags known-vulnerable dependencies introduced by a PR, from the diff of
   # the dependency graph (actions and docker ecosystems here).
@@ -313,4 +313,40 @@ jobs:
           cmake --preset fuzz
           cmake --build --preset fuzz -j 4
           ./build/fuzz/fuzz/tmp_fuzz -max_total_time=15
+        '
+
+  # Benchmarks are a harness, not a timing gate: shared runners make numbers
+  # noise, so CI only proves the harness builds and completes a run.
+  bench:
+    name: bench smoke (Google Benchmark)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+    - name: build toolchain image
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: build and smoke-run the benchmarks in the container
+      run: |
+        docker run --rm -v "$PWD":/src:ro toolchain bash -c '
+          set -e
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          cmake --preset bench
+          cmake --build --preset bench -j 4
+          ./build/bench/bench/tmp_bench --benchmark_min_time=0.01s
         '
