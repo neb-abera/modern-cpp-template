@@ -4,13 +4,26 @@
 # running pass/fail count and a final summary. This mirrors what CI checks
 # before a merge:
 #
-#   1. clean Release build with warnings-as-errors + full test suite
-#   2. the same tests under AddressSanitizer + UndefinedBehaviorSanitizer
-#   3. the compiler is really in strict C++ standard mode (no GNU extensions)
-#   4. executable mode builds and runs
-#   5. the install tree contains only this project's files
-#   6. mutation canary: plant a bug and confirm the tests catch it
-#   7. sources are clang-format clean (skipped if clang-format is missing)
+#    1. clean Release build with warnings-as-errors + full test suite
+#    2. the same tests under AddressSanitizer + UndefinedBehaviorSanitizer
+#    3. the same tests under ThreadSanitizer
+#    4. clang-tidy static analysis (skipped if clang-tidy is missing)
+#    5. fuzz smoke: the libFuzzer harness builds and survives a short run
+#    6. benchmark smoke: the Google Benchmark harness builds and runs
+#    7. the compiler is really in strict C++ standard mode (no GNU extensions)
+#    8. executable mode builds and runs
+#    9. the install tree contains only this project's files (LICENSE and
+#       NOTICE included)
+#   10. mutation canary: plant a bug and confirm the tests catch it
+#   11. required-contexts drift guard: setup.sh's branch-protection list
+#       matches the gate workflows' job names
+#   12. sources are clang-format clean (skipped if clang-format is missing)
+#
+# VERIFY_CHECKS selects a subset by tag (default: all of them), e.g.
+#   VERIFY_CHECKS="release strict exe install canary contexts" ./scripts/verify.sh
+# CI's verify-extras job uses this to run exactly the checks no dedicated CI
+# job covers. The strict/install/canary tags read the release build tree, so
+# include release with them.
 #
 # Exit code 0 means everything passed.
 
@@ -29,7 +42,14 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=11
+# Check tags, in run order; VERIFY_CHECKS (space-separated tags) selects a
+# subset. Each check below is wrapped in `if enabled <tag>`.
+ALL_CHECKS="release asan tsan tidy fuzz bench strict exe install canary contexts format"
+SELECTED=${VERIFY_CHECKS:-$ALL_CHECKS}
+enabled() { case " $SELECTED " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+# shellcheck disable=SC2086
+set -- $SELECTED
+CHECKS_TOTAL=$#
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -93,27 +113,34 @@ run_suite() {
   grep -q '100% tests passed' "$LOG"
 }
 
+if enabled release; then
 banner "Release build + full test suite (warnings as errors)"
 if run_suite release "-D${PROJ}_WARNINGS_AS_ERRORS=ON"; then
   count_ctest; pass "Release: clean build, all tests green"
 else
   count_ctest; fail "Release build/tests"
 fi
+fi
 
+if enabled asan; then
 banner "Tests under AddressSanitizer + UndefinedBehaviorSanitizer"
 if run_suite asan "-D${PROJ}_WARNINGS_AS_ERRORS=ON"; then
   count_ctest; pass "Sanitizers: no memory errors or undefined behavior"
 else
   count_ctest; fail "Sanitizer run"
 fi
+fi
 
+if enabled tsan; then
 banner "Tests under ThreadSanitizer"
 if run_suite tsan "-D${PROJ}_WARNINGS_AS_ERRORS=ON"; then
   count_ctest; pass "ThreadSanitizer: no data races"
 else
   count_ctest; fail "ThreadSanitizer run"
 fi
+fi
 
+if enabled tidy; then
 banner "Static analysis: clang-tidy (C++ Core Guidelines + CERT)"
 if ! command -v clang-tidy > /dev/null; then
   skip "Static analysis (clang-tidy not installed)"
@@ -128,7 +155,9 @@ else
     fail "Static analysis (clang-tidy)"
   fi
 fi
+fi
 
+if enabled fuzz; then
 banner "Fuzz smoke: libFuzzer target builds and survives a short run"
 if ! command -v clang++ > /dev/null; then
   skip "Fuzz smoke (clang++ not installed; libFuzzer needs Clang)"
@@ -145,7 +174,9 @@ else
     fail "Fuzz smoke"
   fi
 fi
+fi
 
+if enabled bench; then
 banner "Benchmark harness builds and runs"
 rm -rf build/bench
 if cmake --preset bench > "$LOG" 2>&1 \
@@ -156,7 +187,9 @@ else
   tail -20 "$LOG"
   fail "Benchmark harness"
 fi
+fi
 
+if enabled strict; then
 banner "Strict C++ standard mode"
 flag=$(grep -rho '\-std=[^ ]*' build/release/CMakeFiles/*.dir/flags.make 2>/dev/null | sort -u | head -1)
 if printf '%s' "$flag" | grep -q '^-std=c++'; then
@@ -166,7 +199,9 @@ else
   echo "compiler flag: ${flag:-<none found>}"
   fail "Strict standard mode (expected -std=c++NN)"
 fi
+fi
 
+if enabled exe; then
 banner "Executable mode smoke test"
 rm -rf build/debug
 if cmake --preset debug -D${PROJ}_BUILD_EXECUTABLE=ON > "$LOG" 2>&1 \
@@ -178,19 +213,25 @@ else
   tail -20 "$LOG"
   fail "Executable mode"
 fi
+fi
 
+if enabled install; then
 banner "Install tree purity"
 rm -rf build/verify-install
 if cmake --install build/release --prefix build/verify-install > "$LOG" 2>&1 \
    && [ -f build/verify-install/include/${PROJ_LOWER}/tmp.hpp ] \
    && [ -f build/verify-install/include/${PROJ_LOWER}/version.hpp ] \
+   && [ -f "build/verify-install/share/doc/${PROJ}/LICENSE" ] \
+   && [ -f "build/verify-install/share/doc/${PROJ}/NOTICE" ] \
    && ! find build/verify-install \( -iname '*gtest*' -o -iname '*gmock*' -o -iname '*catch2*' \) | grep -q .; then
   echo "installed files:"; find build/verify-install -type f | sed 's/^/  /'
-  pass "Install tree contains only this project's files"
+  pass "Install tree contains only this project's files (LICENSE and NOTICE included)"
 else
-  fail "Install tree purity (missing files or test framework leaked in)"
+  fail "Install tree purity (missing files, no LICENSE/NOTICE, or test framework leaked in)"
+fi
 fi
 
+if enabled canary; then
 banner "Mutation canary: do the tests catch a planted bug?"
 # Back up and restore via a plain file copy, so this works in containers and
 # source exports where no git metadata is available.
@@ -214,7 +255,27 @@ else
   restore_canary
   skip "Mutation canary (could not plant the mutation; src/tmp.cpp changed?)"
 fi
+fi
 
+if enabled contexts; then
+banner "Required-contexts drift guard (setup.sh vs gate workflow job names)"
+./scripts/check-required-contexts.sh > "$LOG" 2>&1
+case $? in
+  0)
+    cat "$LOG"
+    pass "Required contexts match the gate workflows' job names"
+    ;;
+  2)
+    skip "Required-contexts drift guard (python3 with PyYAML not available)"
+    ;;
+  *)
+    cat "$LOG"
+    fail "Required-contexts drift guard (setup.sh and workflows disagree)"
+    ;;
+esac
+fi
+
+if enabled format; then
 banner "clang-format check"
 if command -v clang-format > /dev/null; then
   if (shopt -s nullglob globstar 2>/dev/null;
@@ -226,6 +287,7 @@ if command -v clang-format > /dev/null; then
   fi
 else
   skip "clang-format check (clang-format not installed)"
+fi
 fi
 
 printf '\n%s========================= VERIFICATION COMPLETE =========================%s\n' "$BOLD" "$RESET"

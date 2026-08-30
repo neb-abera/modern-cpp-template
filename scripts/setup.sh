@@ -13,8 +13,8 @@
 #      secret scanning, push protection, private vulnerability reporting,
 #      Dependabot alerts and security updates
 #   3. enables branch protection on the default branch requiring the gating
-#      CI checks (the container jobs; the macOS/Windows portability smoke
-#      legs are advisory and deliberately not required)
+#      CI checks (every job that runs on pull requests in ci.yml and
+#      security-scan.yml, the portability legs included)
 #
 # Requirements: git, and the GitHub CLI (`gh`, https://cli.github.com)
 # authenticated as an admin of the repository. Safe to re-run: every step is
@@ -118,18 +118,44 @@ gh api -X PUT "repos/$owner_repo/vulnerability-alerts" > /dev/null
 done_ "Dependabot alerts"
 
 #
-# 3. Branch protection requiring the gating CI checks. Every required check
-#    runs inside the project's toolchain container ("train as you fight");
-#    the macOS/Windows portability smoke legs are advisory, so they are
-#    deliberately absent from this list.
+# 3. Branch protection requiring the gating CI checks: every job that runs
+#    on pull requests in ci.yml and security-scan.yml. The container jobs
+#    are the "train as you fight" core; the macOS/Windows portability legs
+#    gate too, so warnings-as-errors holds on all three compilers.
+#
+#    This list must match the PR-triggered job names in those workflows —
+#    scripts/check-required-contexts.sh (verify.sh's drift-guard check)
+#    fails when they disagree, and it parses the array below, so keep the
+#    REQUIRED_CHECKS=( ... ) block intact.
 #
 
-step "Enabling branch protection on $default_branch"
-gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - > /dev/null <<'JSON'
+REQUIRED_CHECKS=(
+  "build & test (toolchain container)"
+  "portability smoke (macos-latest)"
+  "portability smoke (windows-latest)"
+  "sanitizers (ASan + UBSan)"
+  "thread sanitizer (TSan)"
+  "coverage"
+  "clang-format"
+  "static analysis (clang-tidy)"
+  "fuzz smoke (libFuzzer)"
+  "bench smoke (Google Benchmark)"
+  "dependency review"
+  "verify extras (canary, purity, strict, exe, drift)"
+  "container scan (trivy)"
+)
+
+step "Enabling branch protection on $default_branch (${#REQUIRED_CHECKS[@]} required checks)"
+contexts_json=""
+for c in "${REQUIRED_CHECKS[@]}"; do
+  contexts_json="$contexts_json\"$c\","
+done
+contexts_json=${contexts_json%,}
+gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - > /dev/null <<JSON
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["build & test (toolchain container)", "sanitizers (ASan + UBSan)", "thread sanitizer (TSan)", "coverage", "clang-format", "static analysis (clang-tidy)", "fuzz smoke (libFuzzer)"]
+    "contexts": [$contexts_json]
   },
   "enforce_admins": true,
   "required_pull_request_reviews": null,
@@ -152,5 +178,6 @@ else
   warn "could not enable Pages automatically; enable it under Settings -> Pages -> Source: GitHub Actions"
 fi
 
-printf '\n%sSetup complete.%s Every future change now goes through a PR gated on the six
-CI checks. Verify the renamed project with: make verify-docker\n' "$BOLD" "$RESET"
+printf '\n%sSetup complete.%s Every future change now goes through a PR gated on the
+%d required CI checks. Verify the renamed project with: make verify-docker\n' \
+  "$BOLD" "$RESET" "${#REQUIRED_CHECKS[@]}"

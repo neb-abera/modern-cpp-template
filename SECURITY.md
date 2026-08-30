@@ -27,6 +27,9 @@ Projects generated from this template ship with:
   kept current by Dependabot,
 * least-privilege workflow tokens (`contents: read` except where releasing
   requires write),
+* a trivy CVE scan of the toolchain container image (HIGH/CRITICAL with a
+  fix available) on every pull request and weekly, uploaded to code
+  scanning,
 * a non-root user in the development container.
 
 ## Known scanner findings (accepted)
@@ -40,7 +43,9 @@ report two classes of findings that are accepted deliberately:
 * **pip's vendored `msgpack`/`setuptools`** (inside the pipx shared venv):
   the latest pip still vendors these versions for its own internal use during
   installs. They are not importable by, or linked into, anything this project
-  builds. Revisit when pip updates its vendored set.
+  builds. Revisit when pip updates its vendored set. The specific advisory
+  IDs are suppressed in [`.trivyignore`](.trivyignore) (with per-entry
+  reasoning) so the CI image scan gates on everything else.
 
 The `conan` venv's own `setuptools`/`msgpack` are upgraded past known CVEs at
 image build time, and the unused `pebble` service manager is removed from the
