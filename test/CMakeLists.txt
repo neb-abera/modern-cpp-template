@@ -54,8 +54,8 @@ elseif(${CMAKE_PROJECT_NAME}_USE_CATCH2)
   FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    # v3.15.3, pinned to its commit SHA: release tags are mutable
-    GIT_TAG 8b08d4d79514f45f7e4ce2a607ac9c94e920d1bb
+    # v3.16.0, pinned to its commit SHA: release tags are mutable
+    GIT_TAG 317ac1ed4c0bb6e6b91eafc817e05c488feffcb3
     SYSTEM
     EXCLUDE_FROM_ALL
     FIND_PACKAGE_ARGS
