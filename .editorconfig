@@ -1,0 +1,25 @@
+# EditorConfig (https://editorconfig.org)
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Match .clang-format (BasedOnStyle: Google -> 2-space indent); clang-format
+# remains the authority for C++ layout.
+[*.{cpp,hpp,h,cc,cxx}]
+indent_style = space
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.{cmake,txt}]
+indent_style = space
+indent_size = 2
+
+[Makefile]
+indent_style = tab

@@ -1,0 +1,20 @@
+# Normalize line endings to LF everywhere, including the Windows CI leg;
+# every tool in the suite (MSVC included) handles LF sources.
+* text=auto eol=lf
+
+# Binary files: never diff or normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.a binary
+*.so binary
+*.dylib binary
+*.dll binary
+*.lib binary
+*.exe binary

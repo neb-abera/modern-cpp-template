@@ -7,9 +7,17 @@ Only the latest release (and the `main` branch) receives security updates.
 ## Reporting a Vulnerability
 
 Please report vulnerabilities privately via
-[GitHub's private vulnerability reporting](../../security/advisories/new)
-rather than opening a public issue. You should receive a response within a
-week. Please include a proof of concept or reproduction steps where possible.
+[GitHub's private vulnerability reporting](https://github.com/neb-abera/modern-cpp-template/security/advisories/new)
+rather than opening a public issue. If you cannot use GitHub's flow, email
+<support@alias.abera.tech> instead. Please include a proof of concept or
+reproduction steps where possible.
+
+What to expect:
+
+* acknowledgement of your report within 7 days,
+* coordinated disclosure — we ask that you do not publish details until a
+  fix is released or we agree on a timeline together,
+* a fix, or a status update with our assessment and plan, within 90 days.
 
 ## Hardening in this template
 
