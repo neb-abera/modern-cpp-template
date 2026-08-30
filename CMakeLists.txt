@@ -277,6 +277,16 @@ install(
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME_LOWERCASE}
 )
 
+#
+# Ship the license and required attribution with every install tree, so
+# release tarballs carry the Apache-2.0 text and the NOTICE file.
+#
+
+install(
+  FILES ${CMAKE_CURRENT_LIST_DIR}/LICENSE ${CMAKE_CURRENT_LIST_DIR}/NOTICE
+  DESTINATION ${CMAKE_INSTALL_DOCDIR}
+)
+
 verbose_message("Install targets successfully built. Install with `cmake --install <build_directory> --config <build_config>`.")
 
 #
