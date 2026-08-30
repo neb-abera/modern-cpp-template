@@ -27,7 +27,8 @@
       "displayName": "Release",
       "inherits": "base",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "Project_ENABLE_LTO": "ON"
       }
     },
     {
