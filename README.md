@@ -294,6 +294,9 @@ is not a failing check decays, so each source is wired to one:
   [StandardSettings.cmake](cmake/StandardSettings.cmake),
 * memory errors and undefined behavior — Address + UndefinedBehavior
   sanitizer runs on every PR,
+* **benchmarks** — a Google Benchmark harness ([bench/](bench/)) via the
+  `bench` preset; a harness rather than a timing gate, because shared CI
+  runners make numbers noise — CI proves it builds and runs,
 * **fuzzing** — a libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
   via the `fuzz` preset; CI smoke-runs it, and the harness is where a real
   project points the fuzzer at its parsers and input paths.

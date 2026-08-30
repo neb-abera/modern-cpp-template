@@ -1,0 +1,70 @@
+name: Docs
+
+# Publish the Doxygen API documentation to GitHub Pages on every push to the
+# default branch. Requires Pages to be set to "GitHub Actions" in the repo
+# settings (scripts/setup.sh enables it).
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+    - name: build toolchain image
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: build Doxygen docs in the container
+      run: |
+        mkdir -p site
+        docker run --rm -v "$PWD":/src:ro -v "$PWD/site":/out toolchain bash -c '
+          set -e
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          proj=$(sed -n "s/^[[:space:]]*\"\([A-Za-z0-9_-]*\)\"[[:space:]]*$/\1/p" CMakeLists.txt | head -1)
+          cmake --preset release -D${proj}_ENABLE_DOXYGEN=1
+          cmake --build --preset release --target doxygen-docs
+          cp -r docs/html/. /out/
+        '
+
+    - name: upload pages artifact
+      uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+      with:
+        path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
