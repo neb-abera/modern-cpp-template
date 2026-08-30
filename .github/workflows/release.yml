@@ -133,12 +133,22 @@ jobs:
     - name: install syft
       uses: anchore/sbom-action/download-syft@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
 
+    # Extract each archive first and scan the directory: syft cannot unpack
+    # Windows Compress-Archive zips itself (their directory entries carry no
+    # permission bits, so its extraction mkdir fails).
     - name: generate SBOMs
       run: |
         set -euo pipefail
         for f in artifacts/*; do
           case "$f" in *.spdx.json) continue;; esac
-          syft scan "file:$f" -o spdx-json > "$f.spdx.json"
+          d=$(mktemp -d)
+          case "$f" in
+            *.zip) unzip -q "$f" -d "$d" ;;
+            *.tar.gz) tar -xzf "$f" -C "$d" ;;
+            *) echo "unknown artifact type: $f" >&2; exit 1 ;;
+          esac
+          syft scan "dir:$d" --source-name "$(basename "$f")" -o spdx-json > "$f.spdx.json"
+          rm -rf "$d"
         done
         ls -la artifacts/
 
