@@ -5,6 +5,9 @@ name: Docs
 # "GitHub Actions" in the repo settings (scripts/setup.sh enables it).
 on:
   pull_request:
+  # A merge queue tests the queued merge of this PR with the base branch;
+  # the required checks must report on that event or the queue waits forever.
+  merge_group:
   push:
     branches: [main, master]
   workflow_dispatch:
