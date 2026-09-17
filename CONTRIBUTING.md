@@ -34,11 +34,11 @@ Run the verification suite:
 make verify-docker
 ```
 
-It runs twelve checks: the release build with warnings-as-errors plus the
+It runs fourteen checks: the release build with warnings-as-errors plus the
 test suite, the same tests under ASan+UBSan and under TSan, clang-tidy,
 fuzz and benchmark smoke runs, strict-standard-mode and executable-mode
-checks, install-tree purity, a mutation canary, the required-contexts drift
-guard, and clang-format. CI gates every pull request on the identical
+checks, install-tree purity, the release size budget and its canary, a
+mutation canary, the required-contexts drift guard, and clang-format. CI gates every pull request on the identical
 suite, so a clean local run means green checks.
 
 A few conventions:
@@ -49,6 +49,15 @@ A few conventions:
 * Match the existing style — `make format` applies clang-format.
 * Do not use `[skip ci]` / `[ci skip]`: the checks are required, so a
   commit that skips them cannot merge.
+
+## Raising the size budget
+
+The suite fails when the stripped release artifact outgrows the byte budget
+committed in [size-budget.txt](size-budget.txt). If the growth is intended,
+raise the budget deliberately, in the same pull request as the change that
+needs it: take the measured size from the failing check's message
+(`make verify-docker`), set the budget to roughly 20% above it, and say in
+the pull request what the bytes bought. Never raise it just to get to green.
 
 ## Review and merging
 

@@ -565,11 +565,13 @@ jobs:
         '
 
   # The verify.sh checks no dedicated job above covers: strict standard mode,
-  # executable-mode smoke, install-tree purity, the mutation canary and the
-  # required-contexts drift guard. Runs the same script CI's other jobs
-  # mirror, restricted to those checks via VERIFY_CHECKS (release is included
-  # because the strict/install/canary checks read its build tree). This is
-  # what makes the README's "CI gates on the identical suite" claim true.
+  # executable-mode smoke, install-tree purity, the release size budget and
+  # its canary, the mutation canary and the required-contexts drift guard.
+  # Runs the same script CI's other jobs mirror, restricted to those checks
+  # via VERIFY_CHECKS (release is included because the strict/install/size/
+  # canary checks read its build tree). This is what makes the README's "CI
+  # gates on the identical suite" claim true. The job name is a required
+  # branch-protection context, so it stays as is when checks join the list.
   verify-extras:
     name: verify extras (canary, purity, strict, exe, drift)
     runs-on: ubuntu-latest
@@ -610,7 +612,7 @@ jobs:
           -e GITHUB_STEP_SUMMARY=/out/step-summary.md toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
-          VERIFY_CHECKS="release strict exe install canary contexts" ./scripts/verify.sh
+          VERIFY_CHECKS="release strict exe install size size-canary canary contexts" ./scripts/verify.sh
         '
 
     - name: append verify tally to the job summary
