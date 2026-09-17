@@ -29,14 +29,20 @@ verification suite, and secured by default.
   cases registered with CTest via `gtest_discover_tests`, and a **mutation
   canary** proving the tests catch planted bugs,
 
-* **One verification suite everywhere** — `make verify` runs twelve checks
+* **One verification suite everywhere** — `make verify` runs fourteen checks
   with a running pass/fail tally: release build+tests (warnings as errors),
   ASan+UBSan, TSan, clang-tidy, fuzz smoke, benchmark smoke, strict standard
   mode, executable smoke, install-tree purity (LICENSE and NOTICE included),
-  the mutation canary, a required-contexts drift guard, and clang-format. CI
+  the release size budget and its canary, the mutation canary, a
+  required-contexts drift guard, and clang-format. CI
   gates on the identical suite **inside the production toolchain container**
   ("train as you fight"), plus gating macOS/Windows portability builds on
   native toolchains — warnings as errors on all three compilers,
+
+* **A release size budget** — the stripped release artifact is measured in
+  bytes and gated against the committed [`size-budget.txt`](size-budget.txt),
+  with a canary proving the gate fails one byte over; growth is a reviewed
+  change to the budget, never an accident,
 
 * **Security by default** — OpenSSF compiler hardening plus the C++26
   hardened standard library on by default, CodeQL (C++ and workflows) on
@@ -108,7 +114,7 @@ test/             GoogleTest suite, registered per-case with CTest
 bench/            Google Benchmark harness (`bench` preset)
 fuzz/             libFuzzer harness built with ASan+UBSan (`fuzz` preset)
 cmake/            StandardSettings, CompilerWarnings, analyzers, install glue
-scripts/          verify.sh / verify-docker.sh / setup.sh / check-required-contexts.sh
+scripts/          verify.sh / verify-docker.sh / setup.sh and the check-*.sh gates
 Dockerfile        the pinned toolchain image CI and `make shell` share
 .github/          CI, CodeQL, Security scan, Docs and Release workflows (SHA-pinned), Dependabot
 ```
@@ -167,6 +173,10 @@ is not a failing check decays, so each source is wired to one:
 * **benchmarks** — a Google Benchmark harness ([bench/](bench/)) via the
   `bench` preset; a harness rather than a timing gate, because shared CI
   runners make numbers noise — CI proves it builds and runs,
+* **size budgets** — the stripped release artifact against a committed
+  byte budget ([size-budget.txt](size-budget.txt)), the sibling of the web
+  template's bundle budget; unlike timings, bytes are deterministic on
+  shared runners, so this one is a real gate, and its canary proves it fails,
 * **fuzzing** — a libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
   via the `fuzz` preset; CI smoke-runs it seeded from the committed
   regression corpus (`fuzz/corpus/<target>/`) and uploads any crash input
