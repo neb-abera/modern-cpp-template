@@ -14,16 +14,20 @@
 #    8. executable mode builds and runs
 #    9. the install tree contains only this project's files (LICENSE and
 #       NOTICE included)
-#   10. mutation canary: plant a bug and confirm the tests catch it
-#   11. required-contexts drift guard: setup.sh's branch-protection list
+#   10. size budget: the stripped release artifact fits the committed byte
+#       budget (size-budget.txt)
+#   11. size-budget canary: the size gate fails one byte over budget, and
+#       on a missing artifact or budget
+#   12. mutation canary: plant a bug and confirm the tests catch it
+#   13. required-contexts drift guard: setup.sh's branch-protection list
 #       matches the gate workflows' job names
-#   12. sources are clang-format clean (skipped if clang-format is missing)
+#   14. sources are clang-format clean (skipped if clang-format is missing)
 #
 # VERIFY_CHECKS selects a subset by tag (default: all of them), e.g.
-#   VERIFY_CHECKS="release strict exe install canary contexts" ./scripts/verify.sh
+#   VERIFY_CHECKS="release strict exe install size size-canary canary contexts" ./scripts/verify.sh
 # CI's verify-extras job uses this to run exactly the checks no dedicated CI
-# job covers. The strict/install/canary tags read the release build tree, so
-# include release with them.
+# job covers. The strict/install/size/size-canary/canary tags read the
+# release build tree, so include release with them.
 #
 # When GITHUB_STEP_SUMMARY is set (GitHub Actions, or exported locally) the
 # final tally is also appended there as markdown; runs without it change
@@ -48,7 +52,7 @@ fi
 
 # Check tags, in run order; VERIFY_CHECKS (space-separated tags) selects a
 # subset. Each check below is wrapped in `if enabled <tag>`.
-ALL_CHECKS="release asan tsan tidy fuzz bench strict exe install canary contexts format"
+ALL_CHECKS="release asan tsan tidy fuzz bench strict exe install size size-canary canary contexts format"
 SELECTED=${VERIFY_CHECKS:-$ALL_CHECKS}
 enabled() { case " $SELECTED " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 # shellcheck disable=SC2086
@@ -61,7 +65,7 @@ CHECKS_SKIPPED=0
 TESTS_PASSED=0
 TESTS_FAILED=0
 # Line-coverage percentage, e.g. "97.5%". Set it from any coverage-measuring
-# check that joins the suite; the standard twelve checks measure none (CI's
+# check that joins the suite; the standard fourteen checks measure none (CI's
 # dedicated coverage job does), so the summary line is omitted when empty.
 COVERAGE_PCT=""
 FAILED_NAMES=""
@@ -239,6 +243,42 @@ if cmake --install build/release --prefix build/verify-install > "$LOG" 2>&1 \
   pass "Install tree contains only this project's files (LICENSE and NOTICE included)"
 else
   fail "Install tree purity (missing files, no LICENSE/NOTICE, or test framework leaked in)"
+fi
+fi
+
+# The release artifact the size checks measure: whichever form the release
+# preset built (executable, static or shared library), named after the CMake
+# project exactly as the build names it, so a rename needs no edits here.
+release_artifact() {
+  local c
+  for c in "build/release/${PROJ}" "build/release/lib${PROJ}.a" "build/release/lib${PROJ}.so"; do
+    if [ -f "$c" ]; then printf '%s' "$c"; return 0; fi
+  done
+  # Nothing built: hand the checker the default path so it fails loudly.
+  printf '%s' "build/release/lib${PROJ}.a"
+}
+
+if enabled size; then
+banner "Size budget: stripped release artifact vs size-budget.txt"
+if [ "$(uname -s)" != "Linux" ]; then
+  skip "Size budget (the budget is set for the Linux toolchain container; use make verify-docker)"
+elif ./scripts/check-size-budget.sh "$(release_artifact)" size-budget.txt > "$LOG" 2>&1; then
+  cat "$LOG"
+  pass "Size budget: the stripped release artifact fits the committed budget"
+else
+  cat "$LOG"
+  fail "Size budget (artifact over budget, or artifact/budget missing)"
+fi
+fi
+
+if enabled size-canary; then
+banner "Size-budget canary: does the size gate fail when it should?"
+if ./scripts/check-size-budget.sh --self-test "$(release_artifact)" > "$LOG" 2>&1; then
+  cat "$LOG"
+  pass "Size-budget canary: one byte over, a missing artifact and a missing budget all fail"
+else
+  cat "$LOG"
+  fail "Size-budget canary (the size gate did NOT fail when it should, or there was no artifact to test it on)"
 fi
 fi
 
