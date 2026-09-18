@@ -184,6 +184,12 @@ is not a failing check decays, so each source is wired to one:
   so every later run replays it as a regression test. The harness is where
   a real project points the fuzzer at its parsers and input paths.
 
+Not here on purpose: the web template's held-majors check, which catches a
+dependency major Dependabot stays silent about (an npm peer conflict, a
+NuGet framework floor). CMake dependencies have no Dependabot ecosystem at
+all, so there is no silent case to catch; what this template pins (the
+toolchain image, the actions) Dependabot bumps loudly.
+
 What a linter cannot check — naming things well, small functions, honest
 tests (*Code Complete*, *Clean Code*, *Refactoring*) — is what the mutation
 canary, the test-first workflow and code review are for.
