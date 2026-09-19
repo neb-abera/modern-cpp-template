@@ -202,21 +202,30 @@ jobs:
     # gcovr enforces the line-coverage floor inside this required check:
     # the Codecov statuses (codecov.yaml) are separate, non-required
     # contexts, so without --fail-under-line this job would stay green at
-    # any coverage level. 90 leaves headroom under the template's own 100%
-    # (src/ + include/, tests excluded — the same scope codecov.yaml
-    # measures).
+    # any coverage level. The floor lives in coverage-floor.txt, the one
+    # place it is written down, and scripts/verify.sh's coverage check reads
+    # the same file, so this job and the local suite cannot drift apart. It
+    # leaves headroom under the template's own 100% (src/ + include/, tests
+    # excluded — the same scope codecov.yaml measures).
+    - name: read the coverage floor
+      run: |
+        floor=$(grep -Ev '^[[:space:]]*(#|$)' coverage-floor.txt | tr -d '[:space:]')
+        [ -n "$floor" ] || { echo "coverage-floor.txt holds no number" >&2; exit 1; }
+        echo "COVERAGE_FLOOR=$floor" >> "$GITHUB_ENV"
+
     - name: build, test and generate coverage in the container
       run: |
         set -o pipefail
         mkdir -p coverage-out && chmod 777 coverage-out
-        docker run --rm -v "$PWD":/src:ro -v "$PWD/coverage-out":/out toolchain bash -c '
+        docker run --rm -v "$PWD":/src:ro -v "$PWD/coverage-out":/out \
+          -e COVERAGE_FLOOR toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
           cmake --preset coverage -DProject_WARNINGS_AS_ERRORS=ON
           cmake --build --preset coverage -j 4
           ctest --preset coverage
           gcovr -r . --filter "src/" --filter "include/" \
-            --print-summary --fail-under-line 90 build/coverage
+            --print-summary --fail-under-line "$COVERAGE_FLOOR" build/coverage
           find build/coverage -type f -name "*.gcno" -exec gcov -pb {} +
           sed -i "s|$HOME/project/||g" ./*.gcov
           cp ./*.gcov /out/
@@ -228,7 +237,7 @@ jobs:
         [ -n "${GITHUB_STEP_SUMMARY:-}" ] || exit 0
         pct=$(grep -E '^lines:' ci-coverage.log | grep -Eo '[0-9]+(\.[0-9]+)?%' | head -1)
         [ -n "${pct:-}" ] || exit 0
-        echo "### Coverage: line coverage **${pct}** (gate: >= 90%)" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Coverage: line coverage **${pct}** (gate: >= ${COVERAGE_FLOOR}%)" >> "$GITHUB_STEP_SUMMARY"
 
     - name: upload coverage to Codecov
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -398,10 +407,16 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    # --security-opt seccomp: Docker's default profile plus the
+    # personality(ADDR_NO_RANDOMIZE) call TSan makes to re-exec itself with
+    # ASLR off when the kernel hands it an incompatible memory layout; the
+    # default denies it and TSan dies before its first test. The reasoning
+    # is at the same flag in scripts/verify-docker.sh.
     - name: run tests under TSan in the container
       run: |
         set -o pipefail
-        docker run --rm -v "$PWD":/src:ro toolchain bash -c '
+        docker run --rm -v "$PWD":/src:ro \
+          --security-opt seccomp="$PWD/scripts/tsan-seccomp.json" toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
           cmake --preset tsan -DProject_WARNINGS_AS_ERRORS=ON

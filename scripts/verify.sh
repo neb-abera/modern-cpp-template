@@ -7,21 +7,24 @@
 #    1. clean Release build with warnings-as-errors + full test suite
 #    2. the same tests under AddressSanitizer + UndefinedBehaviorSanitizer
 #    3. the same tests under ThreadSanitizer
-#    4. clang-tidy static analysis (skipped if clang-tidy is missing)
-#    5. fuzz smoke: the libFuzzer harness builds and survives a short run
-#    6. benchmark smoke: the Google Benchmark harness builds and runs
-#    7. the compiler is really in strict C++ standard mode (no GNU extensions)
-#    8. executable mode builds and runs
-#    9. the install tree contains only this project's files (LICENSE and
+#    4. line coverage: the same tests under the coverage preset cover src/
+#       and include/ at or above the floor in coverage-floor.txt (gcovr;
+#       skipped if gcovr is missing)
+#    5. clang-tidy static analysis (skipped if clang-tidy is missing)
+#    6. fuzz smoke: the libFuzzer harness builds and survives a short run
+#    7. benchmark smoke: the Google Benchmark harness builds and runs
+#    8. the compiler is really in strict C++ standard mode (no GNU extensions)
+#    9. executable mode builds and runs
+#   10. the install tree contains only this project's files (LICENSE and
 #       NOTICE included)
-#   10. size budget: the stripped release artifact fits the committed byte
+#   11. size budget: the stripped release artifact fits the committed byte
 #       budget (size-budget.txt)
-#   11. size-budget canary: the size gate fails one byte over budget, and
+#   12. size-budget canary: the size gate fails one byte over budget, and
 #       on a missing artifact or budget
-#   12. mutation canary: plant a bug and confirm the tests catch it
-#   13. required-contexts drift guard: setup.sh's branch-protection list
+#   13. mutation canary: plant a bug and confirm the tests catch it
+#   14. required-contexts drift guard: setup.sh's branch-protection list
 #       matches the gate workflows' job names
-#   14. sources are clang-format clean (skipped if clang-format is missing)
+#   15. sources are clang-format clean (skipped if clang-format is missing)
 #
 # VERIFY_CHECKS selects a subset by tag (default: all of them), e.g.
 #   VERIFY_CHECKS="release strict exe install size size-canary canary contexts" ./scripts/verify.sh
@@ -44,6 +47,11 @@ cd "$(dirname "$0")/.." || exit 1
 PROJ=$(sed -n 's/^[[:space:]]*"\([A-Za-z0-9_-]*\)"[[:space:]]*$/\1/p' CMakeLists.txt | head -1)
 PROJ_LOWER=$(printf '%s' "$PROJ" | tr '[:upper:]' '[:lower:]')
 
+# The line-coverage floor, in percent, read from coverage-floor.txt: the one
+# place it is written down. CI's coverage job reads the same file, so the
+# two gates cannot drift apart. Blank lines and `#` comments are ignored.
+COVERAGE_FLOOR=$(grep -Ev '^[[:space:]]*(#|$)' coverage-floor.txt 2> /dev/null | tr -d '[:space:]')
+
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
 else
@@ -52,7 +60,7 @@ fi
 
 # Check tags, in run order; VERIFY_CHECKS (space-separated tags) selects a
 # subset. Each check below is wrapped in `if enabled <tag>`.
-ALL_CHECKS="release asan tsan tidy fuzz bench strict exe install size size-canary canary contexts format"
+ALL_CHECKS="release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary contexts format"
 SELECTED=${VERIFY_CHECKS:-$ALL_CHECKS}
 enabled() { case " $SELECTED " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 # shellcheck disable=SC2086
@@ -64,9 +72,9 @@ CHECKS_FAILED=0
 CHECKS_SKIPPED=0
 TESTS_PASSED=0
 TESTS_FAILED=0
-# Line-coverage percentage, e.g. "97.5%". Set it from any coverage-measuring
-# check that joins the suite; the standard fourteen checks measure none (CI's
-# dedicated coverage job does), so the summary line is omitted when empty.
+# Line-coverage percentage, e.g. "97.5%", set by the coverage check; the
+# summary lines are omitted when it is empty (the check skipped or was not
+# selected).
 COVERAGE_PCT=""
 FAILED_NAMES=""
 LOG="$(mktemp)"
@@ -149,6 +157,34 @@ if run_suite tsan "-D${PROJ}_WARNINGS_AS_ERRORS=ON"; then
   count_ctest; pass "ThreadSanitizer: no data races"
 else
   count_ctest; fail "ThreadSanitizer run"
+fi
+fi
+
+if enabled coverage; then
+banner "Line coverage: test suite under the coverage preset vs coverage-floor.txt"
+if [ -z "$COVERAGE_FLOOR" ]; then
+  fail "Line coverage (coverage-floor.txt is missing or holds no number)"
+elif ! command -v gcovr > /dev/null; then
+  skip "Line coverage (gcovr not installed; available in the Docker toolchain image)"
+elif ! run_suite coverage "-D${PROJ}_WARNINGS_AS_ERRORS=ON"; then
+  count_ctest; fail "Line coverage (coverage build/tests failed)"
+else
+  count_ctest
+  # The same gcovr invocation and scope as CI's coverage job: src/ and
+  # include/, tests excluded (the scope codecov.yaml measures too), failing
+  # under the shared floor.
+  gcovr -r . --filter "src/" --filter "include/" \
+    --print-summary --fail-under-line "$COVERAGE_FLOOR" build/coverage > "$LOG" 2>&1
+  gcovr_status=$?
+  cat "$LOG"
+  COVERAGE_PCT=$(grep -E '^lines:' "$LOG" | grep -Eo '[0-9]+(\.[0-9]+)?%' | head -1)
+  if [ "$gcovr_status" -eq 0 ]; then
+    pass "Line coverage: ${COVERAGE_PCT:-?} of lines, at or above the ${COVERAGE_FLOOR}% floor"
+  elif [ -n "$COVERAGE_PCT" ]; then
+    fail "Line coverage (${COVERAGE_PCT} of lines, under the ${COVERAGE_FLOOR}% floor)"
+  else
+    fail "Line coverage (gcovr failed; see its output above)"
+  fi
 fi
 fi
 
@@ -353,7 +389,7 @@ write_step_summary() {
     printf '| %d | %d | %d | %d | %d |\n' \
       "$CHECKS_PASSED" "$CHECKS_FAILED" "$CHECKS_SKIPPED" "$TESTS_PASSED" "$TESTS_FAILED"
     if [ -n "$COVERAGE_PCT" ]; then
-      printf '\nLine coverage: %s (gate: >= 90%%)\n' "$COVERAGE_PCT"
+      printf '\nLine coverage: %s (gate: >= %s%%)\n' "$COVERAGE_PCT" "$COVERAGE_FLOOR"
     fi
     if [ "$CHECKS_FAILED" -gt 0 ]; then
       printf '\nFailed checks:\n\n'
@@ -367,6 +403,9 @@ printf 'Checks : %s%d passed%s, %s%d failed%s, %d skipped (of %d)\n' \
   "$GREEN" "$CHECKS_PASSED" "$RESET" "$RED" "$CHECKS_FAILED" "$RESET" "$CHECKS_SKIPPED" "$CHECKS_TOTAL"
 printf 'Tests  : %s%d passed%s, %s%d failed%s\n' \
   "$GREEN" "$TESTS_PASSED" "$RESET" "$RED" "$TESTS_FAILED" "$RESET"
+if [ -n "$COVERAGE_PCT" ]; then
+  printf 'Lines  : %s covered (floor %s%%)\n' "$COVERAGE_PCT" "$COVERAGE_FLOOR"
+fi
 write_step_summary
 if [ "$CHECKS_FAILED" -eq 0 ]; then
   printf '%s%sALL CHECKS PASSED — this build behaves as intended.%s\n' "$BOLD" "$GREEN" "$RESET"
