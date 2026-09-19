@@ -1,0 +1,9 @@
+# Line-coverage floor, in percent, for the test suite's coverage of src/ and
+# include/ (tests excluded — the same scope codecov.yaml measures). Enforced
+# by gcovr --fail-under-line in scripts/verify.sh (the coverage check) and in
+# the CI coverage job (.github/workflows/ci.yml); both read this file, so the
+# two gates cannot drift apart. Blank lines and `#` comments are ignored.
+#
+# 90 leaves headroom under the template's own 100%. Raise it as your
+# project's tests grow — deliberately, as described in CONTRIBUTING.md.
+90

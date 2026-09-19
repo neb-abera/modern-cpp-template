@@ -34,8 +34,9 @@ Run the verification suite:
 make verify-docker
 ```
 
-It runs fourteen checks: the release build with warnings-as-errors plus the
-test suite, the same tests under ASan+UBSan and under TSan, clang-tidy,
+It runs fifteen checks: the release build with warnings-as-errors plus the
+test suite, the same tests under ASan+UBSan and under TSan, line coverage
+against the floor in `coverage-floor.txt`, clang-tidy,
 fuzz and benchmark smoke runs, strict-standard-mode and executable-mode
 checks, install-tree purity, the release size budget and its canary, a
 mutation canary, the required-contexts drift guard, and clang-format. CI gates every pull request on the identical

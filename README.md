@@ -29,10 +29,11 @@ verification suite, and secured by default.
   cases registered with CTest via `gtest_discover_tests`, and a **mutation
   canary** proving the tests catch planted bugs,
 
-* **One verification suite everywhere** — `make verify` runs fourteen checks
+* **One verification suite everywhere** — `make verify` runs fifteen checks
   with a running pass/fail tally: release build+tests (warnings as errors),
-  ASan+UBSan, TSan, clang-tidy, fuzz smoke, benchmark smoke, strict standard
-  mode, executable smoke, install-tree purity (LICENSE and NOTICE included),
+  ASan+UBSan, TSan, line coverage against the committed floor, clang-tidy,
+  fuzz smoke, benchmark smoke, strict standard mode, executable smoke,
+  install-tree purity (LICENSE and NOTICE included),
   the release size budget and its canary, the mutation canary, a
   required-contexts drift guard, and clang-format. CI
   gates on the identical suite **inside the production toolchain container**
