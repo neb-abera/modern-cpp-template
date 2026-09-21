@@ -15,7 +15,7 @@ reproduction steps where possible.
 What to expect:
 
 * acknowledgement of your report within 7 days,
-* coordinated disclosure — we ask that you do not publish details until a
+* coordinated disclosure: we ask that you do not publish details until a
   fix is released or we agree on a timeline together,
 * a fix, or a status update with our assessment and plan, within 90 days.
 
@@ -23,7 +23,7 @@ What to expect:
 
 Projects generated from this template ship with:
 
-* exploit-mitigation compiler/linker flags on by default
+* exploit-mitigation compiler and linker flags on by default
   (`<name>_ENABLE_HARDENING` in `cmake/StandardSettings.cmake`): stack
   protector, `_FORTIFY_SOURCE=3`, PIE, full RELRO and non-executable stack on
   Linux, Control Flow Guard and CET where available,
@@ -42,19 +42,19 @@ Projects generated from this template ship with:
 
 ## Known scanner findings (accepted)
 
-CVE scans of the toolchain image (e.g. `trivy image modern-cpp-template:latest`)
+CVE scans of the toolchain image (`trivy image modern-cpp-template:latest`)
 report two classes of findings that are accepted deliberately:
 
 * **`linux-libc-dev`**: kernel CVEs attributed to the kernel *headers*
   package. The headers are required to compile C++ on Linux and no kernel
   runs inside the container, so these do not apply to the build environment.
-* **pip's vendored `msgpack`/`setuptools`** (inside the pipx shared venv):
-  the latest pip still vendors these versions for its own internal use during
-  installs. They are not importable by, or linked into, anything this project
-  builds. Revisit when pip updates its vendored set. The specific advisory
-  IDs are suppressed in [`.trivyignore`](.trivyignore) (with per-entry
-  reasoning) so the CI image scan gates on everything else.
+* **pip's vendored `msgpack` and `setuptools`** (inside the pipx shared
+  venv): the latest pip still vendors these versions for its own use during
+  installs. They are not importable by, or linked into, anything this
+  project builds. Revisit when pip updates its vendored set. The advisory
+  IDs are suppressed in [`.trivyignore`](.trivyignore), with per-entry
+  reasoning, so the CI image scan gates on everything else.
 
-The `conan` venv's own `setuptools`/`msgpack` are upgraded past known CVEs at
-image build time, and the unused `pebble` service manager is removed from the
-base image.
+The `conan` venv's own `setuptools` and `msgpack` are upgraded past known
+CVEs at image build time, and the unused `pebble` service manager is removed
+from the base image.
