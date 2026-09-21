@@ -1,4 +1,4 @@
-.PHONY: install coverage test asan bench verify verify-docker shell docs format help
+.PHONY: install coverage test asan bench verify verify-docker shell docs format prose help
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -79,3 +79,7 @@ install: ## install the package to the `INSTALL_LOCATION`
 format: ## format the project sources
 	cmake --preset release
 	cmake --build --preset release --target clang-format
+
+prose: ## lint every tracked Markdown file against the writing rules (.vale/styles/Abera)
+	./scripts/check-prose.sh --self-test
+	./scripts/check-prose.sh

@@ -25,6 +25,10 @@
 #   14. required-contexts drift guard: setup.sh's branch-protection list
 #       matches the gate workflows' job names
 #   15. sources are clang-format clean (skipped if clang-format is missing)
+#   16. prose: every tracked Markdown file passes the writing rules in
+#       .vale/styles/Abera (the checker first proves every rule fires on a
+#       fixture and that clean prose passes; skipped if Docker is missing,
+#       as inside the toolchain container, where CI's prose job covers it)
 #
 # VERIFY_CHECKS selects a subset by tag (default: all of them), e.g.
 #   VERIFY_CHECKS="release strict exe install size size-canary canary contexts" ./scripts/verify.sh
@@ -60,7 +64,7 @@ fi
 
 # Check tags, in run order; VERIFY_CHECKS (space-separated tags) selects a
 # subset. Each check below is wrapped in `if enabled <tag>`.
-ALL_CHECKS="release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary contexts format"
+ALL_CHECKS="release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary contexts format prose"
 SELECTED=${VERIFY_CHECKS:-$ALL_CHECKS}
 enabled() { case " $SELECTED " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 # shellcheck disable=SC2086
@@ -374,6 +378,27 @@ if command -v clang-format > /dev/null; then
   fi
 else
   skip "clang-format check (clang-format not installed)"
+fi
+fi
+
+if enabled prose; then
+banner "Prose: every tracked Markdown file passes the writing rules"
+# The rules run in the Vale image the Dockerfile pins (the `vale` stage), so
+# this check needs Docker. Inside the toolchain container (make
+# verify-docker, CI's verify-extras job) there is none and the check skips;
+# CI's prose job runs it on the runner. The self-test runs first, every
+# time: one fixture carries one violation per rule and every rule must fire
+# on it, another is clean and must pass, so a rule that has stopped matching
+# is caught here rather than trusted.
+if ! command -v docker > /dev/null; then
+  skip "Prose (docker not installed; CI's prose job runs this check on the runner)"
+elif ./scripts/check-prose.sh --self-test > "$LOG" 2>&1 \
+   && ./scripts/check-prose.sh >> "$LOG" 2>&1; then
+  grep -E '^self-test' "$LOG" || true
+  pass "Prose passes .vale/styles/Abera"
+else
+  tail -40 "$LOG"
+  fail "Prose (a rule violation in a Markdown file, or a broken self-test)"
 fi
 fi
 
