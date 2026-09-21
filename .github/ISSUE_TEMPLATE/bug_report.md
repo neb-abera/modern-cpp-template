@@ -23,7 +23,7 @@ ctest --preset release
 A clear and concise description of what you expected to happen.
 
 **Actual behavior**
-What happened instead — include the relevant output or error messages.
+What happened instead, with the relevant output or error messages.
 
 **Environment**
 
