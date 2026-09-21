@@ -1,3 +1,8 @@
+# Prose linter, for scripts/check-prose.sh. Never built into anything: the
+# stage exists so the image is a FROM line Dependabot sees and bumps, and the
+# script reads it from here rather than pinning a version of its own.
+FROM jdkato/vale:v3.22.0@sha256:0ef74c2c8331a2cc8739ecc8b4f7cc6672e61524c3697e8c8857bc86b724a28e AS vale
+
 # Pinned by digest so every build resolves the same base image; Dependabot's
 # docker ecosystem keeps the digest current. 26.04 LTS digest as of 2026-08-30.
 FROM ubuntu:26.04@sha256:513c074113a871b51a8d16ab445c88779d6452d937a164fb5cc479f32668a41d

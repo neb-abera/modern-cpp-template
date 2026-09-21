@@ -155,6 +155,7 @@ REQUIRED_CHECKS=(
   "dependency review"
   "verify extras (canary, purity, strict, exe, drift)"
   "container scan (trivy)"
+  "prose"
 )
 
 step "Enabling branch protection on $default_branch (${#REQUIRED_CHECKS[@]} required checks)"
