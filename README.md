@@ -4,71 +4,75 @@
 
 # Modern C++ Template
 
-A production-shaped starting point for C++ projects: **C++26** by default,
-**CMake presets**, developed entirely in Docker, gated by a test-driven
-verification suite, and secured by default.
+A starting point for C++ projects: C++26 by default, CMake presets,
+developed in Docker, gated by a test-driven verification suite, secured by
+default.
 
 ## Features
 
-* **Docker-first development** — the host needs only Docker and git. `make
-  shell` opens a toolchain shell (GCC 15, Clang 21, CMake 4.2, clang-format,
-  clang-tidy, Doxygen, ccache, Conan 2, vcpkg — all pinned in the
-  [`Dockerfile`](Dockerfile)); `make verify-docker` runs the whole suite in a
-  fresh container with the source mounted read-only,
+* **Docker-first.** The host needs Docker and git. `make shell` opens a
+  toolchain shell with GCC 15, Clang 21, CMake 4.2, clang-format,
+  clang-tidy, Doxygen, ccache, Conan 2 and vcpkg, all pinned in the
+  [`Dockerfile`](Dockerfile). `make verify-docker` runs the whole suite in a
+  fresh container with the source mounted read-only.
 
-* **Modern CMake** — C++26 by default (configurable via the `CXX_STANDARD`
-  option; MSVC auto-clamps to its newest mode until it ships one), headers
-  installed through [file sets](https://cmake.org/cmake/help/latest/command/target_sources.html),
-  library / header-only / executable modes, and
-  [presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html)
+* **Modern CMake.** C++26 by default, configurable through the
+  `CXX_STANDARD` option. MSVC clamps to its newest mode until it ships one.
+  Headers install through
+  [file sets](https://cmake.org/cmake/help/latest/command/target_sources.html).
+  Library, header-only and executable modes.
+  [Presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html)
   (`debug`, `release` with LTO, `coverage`, `asan`, `tsan`, `tidy`, `bench`,
-  `fuzz`, `vcpkg`) so building is `cmake --preset <name>` everywhere,
+  `fuzz`, `vcpkg`), so building is `cmake --preset <name>` everywhere.
 
-* **Test-driven by default** — GoogleTest (or Catch2 v3) fetched
-  automatically via `FetchContent` with a system-install fallback, individual
-  cases registered with CTest via `gtest_discover_tests`, and a **mutation
-  canary** proving the tests catch planted bugs,
+* **Test-driven.** GoogleTest (or Catch2 v3) fetched through `FetchContent`
+  with a system-install fallback, cases registered with CTest through
+  `gtest_discover_tests`, and a mutation canary that proves the tests catch
+  a planted bug.
 
-* **One verification suite everywhere** — `make verify` runs fifteen checks
-  with a running pass/fail tally: release build+tests (warnings as errors),
-  ASan+UBSan, TSan, line coverage against the committed floor, clang-tidy,
-  fuzz smoke, benchmark smoke, strict standard mode, executable smoke,
-  install-tree purity (LICENSE and NOTICE included),
-  the release size budget and its canary, the mutation canary, a
-  required-contexts drift guard, and clang-format. CI
-  gates on the identical suite **inside the production toolchain container**
-  ("train as you fight"), plus gating macOS/Windows portability builds on
-  native toolchains — warnings as errors on all three compilers,
+* **One verification suite.** `make verify` runs sixteen checks with a
+  pass/fail tally: release build and tests (warnings as errors), ASan+UBSan,
+  TSan, line coverage against the committed floor, clang-tidy, fuzz smoke,
+  benchmark smoke, strict standard mode, executable smoke, install-tree
+  purity (LICENSE and NOTICE included), the release size budget and its
+  canary, the mutation canary, a required-contexts drift guard, clang-format
+  and the prose check. CI gates on the identical suite inside the toolchain
+  container, plus macOS and Windows portability builds on native toolchains,
+  warnings as errors on all three compilers. The list is at the top of
+  [scripts/verify.sh](scripts/verify.sh).
 
-* **A release size budget** — the stripped release artifact is measured in
-  bytes and gated against the committed [`size-budget.txt`](size-budget.txt),
-  with a canary proving the gate fails one byte over; growth is a reviewed
-  change to the budget, never an accident,
+* **A release size budget.** The stripped release artifact is measured in
+  bytes against the committed [`size-budget.txt`](size-budget.txt), with a
+  canary that proves the gate fails one byte over. Growth is a reviewed
+  change to the budget.
 
-* **Security by default** — OpenSSF compiler hardening plus the C++26
-  hardened standard library on by default, CodeQL (C++ and workflows) on
-  every PR, Actions pinned to commit SHAs, least-privilege tokens,
-  harden-runner egress control, trivy image scanning, and a SECURITY.md
-  (see it for the full inventory),
+* **Security.** OpenSSF compiler hardening and the C++26 hardened standard
+  library on by default, CodeQL (C++ and workflows) on every PR, Actions
+  pinned to commit SHAs, least-privilege tokens, harden-runner egress
+  control and trivy image scanning. [SECURITY.md](SECURITY.md) has the
+  inventory.
 
-* **…and it stays current by machinery, not memory** — every Action and the
-  Docker base image are pinned by commit SHA with a version comment, and
-  Dependabot bumps SHA and comment together, minor/patch grouped into one
-  weekly PR per ecosystem. The `dependabot-automerge` workflow arms
-  auto-merge on every Dependabot PR, majors included; red CI, not update
-  size, is the review signal. The FetchContent pins (googletest/Catch2,
-  Google Benchmark) sit outside every Dependabot ecosystem, so the monthly
-  `fetchcontent-upgrade` workflow moves them to the latest releases and
-  opens the PR itself,
+* **Prose is linted.** `make prose` runs Vale with the rules in
+  `.vale/styles/Abera` over every Markdown file. Check 16 of the suite.
 
-* **Releases from tags** — pushing `v*` builds and tests on all three
+* **Kept current by Dependabot.** Every Action and the Docker base image are
+  pinned by commit SHA or digest with a version comment, and Dependabot
+  bumps pin and comment together, minor and patch grouped into one weekly PR
+  per ecosystem. The `dependabot-automerge` workflow arms auto-merge on
+  every Dependabot PR, majors included. A bump that passes merges itself.
+  One that breaks stays open and red. The FetchContent pins (googletest or
+  Catch2, Google Benchmark) sit outside every Dependabot ecosystem, so the
+  monthly `fetchcontent-upgrade` workflow moves them to the latest releases
+  and opens the PR itself.
+
+* **Releases from tags.** Pushing `v*` builds and tests on all three
   platforms and publishes packaged install trees to a GitHub Release, with
   provenance attestations and SBOMs: one per shipped archive (its contents)
-  and one of the toolchain container image (the full build environment).
-  Tag confirmed-working milestones so rollback points are named,
+  and one of the toolchain container image (the build environment). Tag a
+  working milestone to name a rollback point.
 
-* **Ccache**, **Doxygen** (published to GitHub Pages on pushes to main), and
-  a devcontainer for one-click IDE setup.
+* **Ccache, Doxygen** (published to GitHub Pages on pushes to main) **and a
+  devcontainer** for IDE setup.
 
 ## Getting started
 
@@ -82,29 +86,29 @@ make shell          # toolchain shell: edit on the host, build in the container
 make verify-docker  # the full verification suite (what CI runs)
 ```
 
-Inside the shell (or on a host with the prerequisites), building is presets
+Inside the shell, or on a host with the prerequisites, building is presets
 all the way down:
 
 ```bash
 cmake --preset release && cmake --build --preset release && ctest --preset release
 ```
 
-`make help` lists everything else (`test`, `coverage`, `asan`, `bench`,
-`docs`, `format`).
+`make help` lists the rest (`test`, `coverage`, `asan`, `bench`, `docs`,
+`format`, `prose`).
 
-> ***Note:*** *Don't mix host builds and container builds in the same
-`build/` directory — the CMake cache records absolute compiler paths. If you
-switch between the two, `rm -rf build/` first.*
+Host builds and container builds must not share a `build/` directory. The
+CMake cache records absolute compiler paths. `rm -rf build/` when switching
+between the two.
 
 ### Prerequisites
 
-* **Docker** - found at [https://www.docker.com/](https://www.docker.com/)
+* **Docker**, from [docker.com](https://www.docker.com/)
 * **git**
 
-Nothing else for the intended workflow: compilers and every analysis tool run
-inside the container. To develop directly on the host instead you need
-**CMake 3.28+** and **GCC 14+ / Clang 17+** (or MSVC; the standard can be
-lowered to C++17/20/23 via the `<project_name>_CXX_STANDARD` option).
+Compilers and every analysis tool run inside the container. Developing on
+the host instead needs CMake 3.28+ and GCC 14+ or Clang 17+, or MSVC. The
+standard can be lowered to C++17, 20 or 23 through the
+`<project_name>_CXX_STANDARD` option.
 
 ## Project layout
 
@@ -116,33 +120,33 @@ bench/            Google Benchmark harness (`bench` preset)
 fuzz/             libFuzzer harness built with ASan+UBSan (`fuzz` preset)
 cmake/            StandardSettings, CompilerWarnings, analyzers, install glue
 scripts/          verify.sh / verify-docker.sh / setup.sh and the check-*.sh gates
-Dockerfile        the pinned toolchain image CI and `make shell` share
+.vale/            the writing rules (styles/Abera) and their self-test fixtures
+Dockerfile        the pinned toolchain image CI and `make shell` share, and the prose linter stage
 .github/          CI, CodeQL, Security scan, Docs and Release workflows (SHA-pinned), Dependabot
 ```
 
 ## Development workflow
 
-1. Write a failing test in `test/` (or a fuzz/bench target when that layer
-   owns the behavior).
+1. Write a failing test in `test/`, or a fuzz or bench target when that
+   layer owns the behavior.
 2. `make shell` and implement until the test passes.
-3. `make verify-docker` before pushing — CI gates on the identical suite, so
-   a local green run predicts the PR gate.
-4. When a milestone is confirmed working, tag it (`git tag v1.2.0 && git
-   push origin v1.2.0`) to publish a release ([SemVer](http://semver.org/)).
+3. `make verify-docker` before pushing. CI gates on the identical suite.
+4. When a milestone works, tag it (`git tag v1.2.0 && git push origin
+   v1.2.0`) to publish a release ([SemVer](http://semver.org/)).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the pull-request process.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the pull-request process.
 
 ### Dependencies (package managers)
 
-Both package managers use the standard `find_package`/`target_link_libraries`
-flow in `CMakeLists.txt`:
+Both package managers use the `find_package` and `target_link_libraries`
+flow in `CMakeLists.txt`.
 
 * **vcpkg (manifest mode):** add dependencies to [`vcpkg.json`](vcpkg.json),
   point `VCPKG_ROOT` at a [vcpkg](https://github.com/microsoft/vcpkg)
   checkout, and configure with `cmake --preset vcpkg`.
-* **Conan 2:** add dependencies to [`conanfile.txt`](conanfile.txt); both the
-  [cmake-conan](https://github.com/conan-io/cmake-conan) provider and plain
-  `conan install` flows are documented at the top of that file.
+* **Conan 2:** add dependencies to [`conanfile.txt`](conanfile.txt). The
+  [cmake-conan](https://github.com/conan-io/cmake-conan) provider and the
+  plain `conan install` flow are documented at the top of that file.
 
 ### Documentation
 
@@ -152,76 +156,74 @@ make docs     # Doxygen into docs/html; CI publishes it to GitHub Pages on main
 
 ## Where the practices come from
 
-The canon this template enforces, and the gate that enforces it — advice that
-is not a failing check decays, so each source is wired to one:
+Each source below is wired to a failing check.
 
-* **C++ Core Guidelines** (Stroustrup/Sutter — the living successor to *C++
-  Coding Standards*) and the **SEI CERT C++ standard** — enforced by
-  clang-tidy's `cppcoreguidelines-*` and `cert-*` checks via the `tidy`
-  preset, gated in CI, warnings as errors ([.clang-tidy](.clang-tidy)),
-* **Effective (Modern) C++ / Effective STL** (Meyers) — the `modernize-*`,
-  `performance-*`, `readability-*` and `bugprone-*` checks in the same gate,
-* **C++ Concurrency in Action** (Williams) — the `tsan` preset runs the test
-  suite under ThreadSanitizer in CI; `concurrency-*` clang-tidy checks run
-  statically,
-* **cppbestpractices** (Jason Turner) — the warning set in
-  [CompilerWarnings.cmake](cmake/CompilerWarnings.cmake),
-* **OpenSSF compiler hardening** plus the **C++26 hardened standard
-  library** (`_GLIBCXX_ASSERTIONS` / libc++ hardening) — on by default in
-  [StandardSettings.cmake](cmake/StandardSettings.cmake),
-* memory errors and undefined behavior — Address + UndefinedBehavior
-  sanitizer runs on every PR,
-* **benchmarks** — a Google Benchmark harness ([bench/](bench/)) via the
-  `bench` preset; a harness rather than a timing gate, because shared CI
-  runners make numbers noise — CI proves it builds and runs,
-* **size budgets** — the stripped release artifact against a committed
-  byte budget ([size-budget.txt](size-budget.txt)), the sibling of the web
-  template's bundle budget; unlike timings, bytes are deterministic on
-  shared runners, so this one is a real gate, and its canary proves it fails,
-* **fuzzing** — a libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
-  via the `fuzz` preset; CI smoke-runs it seeded from the committed
+* **C++ Core Guidelines** (Stroustrup and Sutter, the successor to *C++
+  Coding Standards*) and the **SEI CERT C++ standard.** clang-tidy's
+  `cppcoreguidelines-*` and `cert-*` checks through the `tidy` preset, gated
+  in CI, warnings as errors ([.clang-tidy](.clang-tidy)).
+* **Effective (Modern) C++ and Effective STL** (Meyers). The `modernize-*`,
+  `performance-*`, `readability-*` and `bugprone-*` checks in the same gate.
+* **C++ Concurrency in Action** (Williams). The `tsan` preset runs the test
+  suite under ThreadSanitizer in CI. The `concurrency-*` clang-tidy checks
+  run statically.
+* **cppbestpractices** (Jason Turner). The warning set in
+  [CompilerWarnings.cmake](cmake/CompilerWarnings.cmake).
+* **OpenSSF compiler hardening** and the **C++26 hardened standard
+  library** (`_GLIBCXX_ASSERTIONS`, libc++ hardening). On by default in
+  [StandardSettings.cmake](cmake/StandardSettings.cmake).
+* **Memory errors and undefined behavior.** Address and UndefinedBehavior
+  sanitizer runs on every PR.
+* **Benchmarks.** A Google Benchmark harness ([bench/](bench/)) through the
+  `bench` preset. A harness rather than a timing gate, because shared CI
+  runners make numbers noise. CI proves it builds and runs.
+* **Size budgets.** The stripped release artifact against a committed byte
+  budget ([size-budget.txt](size-budget.txt)), the sibling of the web
+  template's bundle budget. Bytes are deterministic on shared runners, so
+  this one is a gate, and its canary proves it fails.
+* **Fuzzing.** A libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
+  through the `fuzz` preset. CI smoke-runs it seeded from the committed
   regression corpus (`fuzz/corpus/<target>/`) and uploads any crash input
   as a CI artifact. A fixed crash gets its input committed to the corpus,
   so every later run replays it as a regression test. The harness is where
   a real project points the fuzzer at its parsers and input paths.
 
-Not here on purpose: the web template's held-majors check, which catches a
-dependency major Dependabot stays silent about (an npm peer conflict, a
-NuGet framework floor). CMake dependencies have no Dependabot ecosystem at
-all, so there is no silent case to catch; what this template pins (the
-toolchain image, the actions) Dependabot bumps loudly.
+The web template's held-majors check has no counterpart here. It catches a
+dependency major Dependabot stays silent about: an npm peer conflict or a
+NuGet framework floor. CMake dependencies have no Dependabot ecosystem, so
+there is no silent case to catch. What this template pins (the toolchain
+image, the actions) Dependabot bumps loudly.
 
-What a linter cannot check — naming things well, small functions, honest
-tests (*Code Complete*, *Clean Code*, *Refactoring*) — is what the mutation
-canary, the test-first workflow and code review are for.
+Naming, small functions and honest tests (*Code Complete*, *Clean Code*,
+*Refactoring*) are what the mutation canary, the test-first workflow and
+code review are for.
 
 ## After generating from this template
 
-One command finishes the setup — it renames the project after your
-repository (CMake project name and option prefix, the `*Config.cmake.in`
-file, presets, Makefile, the include directory and every `#include` of it,
-and the README badges/links, the Codecov coverage badge included) and enables the repo-level GitHub settings
-templates cannot carry over (secret scanning, push protection, private
-vulnerability reporting, Dependabot alerts + security updates, GitHub Pages,
-and branch protection requiring the gating CI checks):
+One command renames the project after your repository (CMake project name
+and option prefix, the `*Config.cmake.in` file, presets, Makefile, the
+include directory and every `#include` of it, and the README badges and
+links, the Codecov coverage badge included) and enables the repository
+settings templates cannot carry over: secret scanning, push protection,
+private vulnerability reporting, Dependabot alerts and security updates,
+GitHub Pages, and branch protection requiring the gating CI checks.
 
 ```bash
 ./scripts/setup.sh
 ```
 
 It needs the [GitHub CLI](https://cli.github.com) authenticated as a repo
-admin, and it is safe to re-run. The `dependabot-automerge` workflow
-additionally needs the repository's Allow auto-merge setting plus a
-`DEPENDABOT_AUTOMERGE_TOKEN` secret (fine-grained PAT, contents + pull
-requests write — a PAT so the merge still triggers workflows, which
-`GITHUB_TOKEN` merges do not); until both exist it warns and does nothing.
-The coverage badge (rewritten to your repository by the same rename) reads
+admin, and it is safe to re-run. The `dependabot-automerge` workflow also
+needs the repository's Allow auto-merge setting and a
+`DEPENDABOT_AUTOMERGE_TOKEN` secret (a fine-grained PAT with contents and
+pull-requests write, so the merge still triggers workflows, which
+`GITHUB_TOKEN` merges do not). Until both exist it warns and does nothing.
+The coverage badge, rewritten to your repository by the same rename, reads
 "unknown" until a `CODECOV_TOKEN` secret is added and coverage uploads once.
 
 ## License
 
-This project is licensed under the
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) — see the
-[LICENSE](LICENSE) file. Keep the [NOTICE](NOTICE) file's attribution with
-any copies. It began as a modified version of
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). See
+[LICENSE](LICENSE), and keep the [NOTICE](NOTICE) attribution with any
+copies. It began as a modified version of
 [filipdutescu's modern-cpp-template](https://github.com/filipdutescu/modern-cpp-template).
