@@ -588,7 +588,7 @@ jobs:
   # gates on the identical suite" claim true. The job name is a required
   # branch-protection context, so it stays as is when checks join the list.
   verify-extras:
-    name: verify extras (canary, purity, strict, exe, drift)
+    name: verify extras (proofs, canary, purity, strict, exe, drift)
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -627,7 +627,7 @@ jobs:
           -e GITHUB_STEP_SUMMARY=/out/step-summary.md toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
-          VERIFY_CHECKS="release strict exe install size size-canary canary contexts" ./scripts/verify.sh
+          VERIFY_CHECKS="release strict exe install size size-canary canary proof proof-canary contexts" ./scripts/verify.sh
         '
 
     - name: append verify tally to the job summary

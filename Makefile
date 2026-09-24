@@ -1,4 +1,4 @@
-.PHONY: install coverage test asan bench verify verify-docker shell docs format prose help
+.PHONY: install coverage test asan bench proof verify verify-docker shell docs format prose help
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -37,6 +37,9 @@ test: ## build and run tests with ctest
 	cmake --preset release
 	cmake --build --preset release
 	ctest --preset release
+
+proof: ## prove the CBMC harnesses in proof/ for every input of the type
+	./scripts/check-proofs.sh
 
 coverage: ## check code coverage with GCC/Clang
 	cmake --preset coverage
