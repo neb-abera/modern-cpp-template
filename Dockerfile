@@ -12,9 +12,16 @@ FROM ubuntu:26.04@sha256:513c074113a871b51a8d16ab445c88779d6452d937a164fb5cc479f
 # so no manual installs are needed. The unit testing frameworks
 # (GoogleTest/Catch2) are fetched automatically by CMake via FetchContent,
 # so they are not installed here either.
+# The pinned CBMC version, for the proof gate (scripts/check-proofs.sh).
+# CBMC is a model checker carrying its own SAT solver, and a proof is only as
+# good as the solver that checked it, so the gate fails when the installed
+# version and this line disagree.
+ENV CBMC_VERSION=6.6.0
+
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         build-essential \
+        cbmc \
         ccache \
         clang \
         libclang-rt-21-dev \
