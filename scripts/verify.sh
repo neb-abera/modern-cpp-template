@@ -331,16 +331,32 @@ cp src/tmp.cpp "$BACKUP"
 restore_canary() { cp "$BACKUP" src/tmp.cpp; rm -f "$BACKUP"; }
 perl -pi -e 's/return lhs \+ rhs;/return lhs - rhs;/' src/tmp.cpp
 if ! cmp -s src/tmp.cpp "$BACKUP"; then
-  cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1
-  if ctest --preset release > "$LOG" 2>&1; then
+  # The build's exit code is checked, not discarded. A planted bug that does
+  # not compile leaves the previous binary in place (or none at all), and
+  # ctest then fails for a reason that has nothing to do with the mutation.
+  if ! cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1; then
     restore_canary
-    fail "Mutation canary (tests did NOT catch the planted bug!)"
+    tail -20 "$LOG"
+    cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > /dev/null 2>&1
+    fail "Mutation canary (the planted bug did not compile, so the tests were never run against it)"
   else
+    ctest --preset release > "$LOG" 2>&1
+    # As with the build: a non-zero ctest exit can mean no tests ran at all,
+    # so read the reported count rather than the exit code. An empty count is
+    # the broken case and used to be reported as "$caught tests failed".
     caught=$(grep -Eo '[0-9]+ tests failed out of [0-9]+' "$LOG" | awk '{print $1}' | tail -1)
+    total=$(grep -Eo 'tests failed out of [0-9]+' "$LOG" | awk '{print $NF}' | tail -1)
     restore_canary
-    cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1
-    echo "planted 'a + b -> a - b'; $caught tests failed as they should, then restored"
-    pass "Mutation canary: tests caught the planted bug ($caught failures)"
+    cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > /dev/null 2>&1
+    if [ -z "$total" ]; then
+      tail -20 "$LOG"
+      fail "Mutation canary (ctest reported no results, so the planted bug was never measured)"
+    elif [ "${caught:-0}" -eq 0 ]; then
+      fail "Mutation canary (tests did NOT catch the planted bug!)"
+    else
+      echo "planted 'a + b -> a - b'; $caught of $total tests failed as they should, then restored"
+      pass "Mutation canary: tests caught the planted bug ($caught failures)"
+    fi
   fi
 else
   restore_canary
