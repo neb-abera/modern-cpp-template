@@ -22,10 +22,14 @@
 #   12. size-budget canary: the size gate fails one byte over budget, and
 #       on a missing artifact or budget
 #   13. mutation canary: plant a bug and confirm the tests catch it
-#   14. required-contexts drift guard: setup.sh's branch-protection list
+#   14. proofs: CBMC settles the harnesses in proof/ for every input of the
+#       type, not the inputs the tests sample
+#   15. proof canary: a planted bug the tests cannot see must make CBMC fail,
+#       so the proofs are load-bearing rather than vacuous
+#   16. required-contexts drift guard: setup.sh's branch-protection list
 #       matches the gate workflows' job names
-#   15. sources are clang-format clean (skipped if clang-format is missing)
-#   16. prose: every tracked Markdown file passes the writing rules in
+#   17. sources are clang-format clean (skipped if clang-format is missing)
+#   18. prose: every tracked Markdown file passes the writing rules in
 #       .vale/styles/Abera (the checker first proves every rule fires on a
 #       fixture and that clean prose passes; skipped if Docker is missing,
 #       as inside the toolchain container, where CI's prose job covers it)
@@ -64,7 +68,7 @@ fi
 
 # Check tags, in run order; VERIFY_CHECKS (space-separated tags) selects a
 # subset. Each check below is wrapped in `if enabled <tag>`.
-ALL_CHECKS="release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary contexts format prose"
+ALL_CHECKS="release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary proof proof-canary contexts format prose"
 SELECTED=${VERIFY_CHECKS:-$ALL_CHECKS}
 enabled() { case " $SELECTED " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 # shellcheck disable=SC2086
@@ -331,20 +335,66 @@ cp src/tmp.cpp "$BACKUP"
 restore_canary() { cp "$BACKUP" src/tmp.cpp; rm -f "$BACKUP"; }
 perl -pi -e 's/return lhs \+ rhs;/return lhs - rhs;/' src/tmp.cpp
 if ! cmp -s src/tmp.cpp "$BACKUP"; then
-  cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1
-  if ctest --preset release > "$LOG" 2>&1; then
+  # The build's exit code is checked, not discarded. A planted bug that does
+  # not compile leaves the previous binary in place (or none at all), and
+  # ctest then fails for a reason that has nothing to do with the mutation.
+  if ! cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1; then
     restore_canary
-    fail "Mutation canary (tests did NOT catch the planted bug!)"
+    tail -20 "$LOG"
+    cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > /dev/null 2>&1
+    fail "Mutation canary (the planted bug did not compile, so the tests were never run against it)"
   else
+    ctest --preset release > "$LOG" 2>&1
+    # As with the build: a non-zero ctest exit can mean no tests ran at all,
+    # so read the reported count rather than the exit code. An empty count is
+    # the broken case and used to be reported as "$caught tests failed".
     caught=$(grep -Eo '[0-9]+ tests failed out of [0-9]+' "$LOG" | awk '{print $1}' | tail -1)
+    total=$(grep -Eo 'tests failed out of [0-9]+' "$LOG" | awk '{print $NF}' | tail -1)
     restore_canary
-    cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > "$LOG" 2>&1
-    echo "planted 'a + b -> a - b'; $caught tests failed as they should, then restored"
-    pass "Mutation canary: tests caught the planted bug ($caught failures)"
+    cmake --build --preset release -j "$(getconf _NPROCESSORS_ONLN)" > /dev/null 2>&1
+    if [ -z "$total" ]; then
+      tail -20 "$LOG"
+      fail "Mutation canary (ctest reported no results, so the planted bug was never measured)"
+    elif [ "${caught:-0}" -eq 0 ]; then
+      fail "Mutation canary (tests did NOT catch the planted bug!)"
+    else
+      echo "planted 'a + b -> a - b'; $caught of $total tests failed as they should, then restored"
+      pass "Mutation canary: tests caught the planted bug ($caught failures)"
+    fi
   fi
 else
   restore_canary
   skip "Mutation canary (could not plant the mutation; src/tmp.cpp changed?)"
+fi
+fi
+
+if enabled proof; then
+banner "Proofs under CBMC (bounded model checking, all inputs)"
+if ! command -v cbmc > /dev/null; then
+  skip "Proofs (cbmc not installed; it ships in the Docker toolchain image)"
+elif ./scripts/check-proofs.sh > "$LOG" 2>&1; then
+  grep -E '^cbmc |^all proof' "$LOG" || true
+  pass "CBMC: every proof harness verified for all inputs of the type"
+else
+  grep -E 'FAILURE|VERIFICATION|^error' "$LOG" | head -20 || tail -20 "$LOG"
+  fail "Proofs (CBMC)"
+fi
+fi
+
+if enabled proof-canary; then
+banner "Proof canary: are the proofs load-bearing, or vacuous?"
+# A proof gate does not fail loudly, it reports success: an over-strong
+# __CPROVER_assume proves a vacuous theorem and prints SUCCESSFUL. The
+# self-test plants a wrong answer the unit tests never sample, requires CBMC
+# to fail on it, and requires it to pass again once the source is restored.
+if ! command -v cbmc > /dev/null; then
+  skip "Proof canary (cbmc not installed)"
+elif ./scripts/check-proofs.sh --self-test > "$LOG" 2>&1; then
+  grep -E '^self-test' "$LOG" || true
+  pass "Proof canary: CBMC caught a planted bug the tests miss, and passed again after the restore"
+else
+  tail -20 "$LOG"
+  fail "Proof canary (CBMC did NOT fail on the planted bug, or did not recover)"
 fi
 fi
 

@@ -30,13 +30,13 @@ default.
   `gtest_discover_tests`, and a mutation canary that proves the tests catch
   a planted bug.
 
-* **One verification suite.** `make verify` runs sixteen checks with a
+* **One verification suite.** `make verify` runs eighteen checks with a
   pass/fail tally: release build and tests (warnings as errors), ASan+UBSan,
   TSan, line coverage against the committed floor, clang-tidy, fuzz smoke,
   benchmark smoke, strict standard mode, executable smoke, install-tree
   purity (LICENSE and NOTICE included), the release size budget and its
-  canary, the mutation canary, a required-contexts drift guard, clang-format
-  and the prose check. CI gates on the identical suite inside the toolchain
+  canary, the mutation canary, the CBMC proofs and the proof canary, a
+  required-contexts drift guard, clang-format and the prose check. CI gates on the identical suite inside the toolchain
   container, plus macOS and Windows portability builds on native toolchains,
   warnings as errors on all three compilers. The list is at the top of
   [scripts/verify.sh](scripts/verify.sh).
@@ -118,6 +118,7 @@ src/              implementation and the optional executable entry point
 test/             GoogleTest suite, registered per-case with CTest
 bench/            Google Benchmark harness (`bench` preset)
 fuzz/             libFuzzer harness built with ASan+UBSan (`fuzz` preset)
+proof/            CBMC proof harnesses, checked by scripts/check-proofs.sh
 cmake/            StandardSettings, CompilerWarnings, analyzers, install glue
 scripts/          verify.sh / verify-docker.sh / setup.sh and the check-*.sh gates
 .vale/            the writing rules (styles/Abera) and their self-test fixtures
@@ -181,6 +182,33 @@ Each source below is wired to a failing check.
   budget ([size-budget.txt](size-budget.txt)), the sibling of the web
   template's bundle budget. Bytes are deterministic on shared runners, so
   this one is a gate, and its canary proves it fails.
+* **Proofs.** The harnesses in [proof/](proof/) are settled by
+  [CBMC](https://github.com/diffblue/cbmc), a bounded model checker, on every
+  pull request. Every other gate here is dynamic: the tests sample inputs, the
+  sanitizers watch the sampled runs, the fuzzer searches for more. CBMC is the
+  static one. It hands each property to a SAT solver and settles it for every
+  input of the type, or returns a counterexample. `nondet_int()` is not a
+  random value, it is an unconstrained one.
+
+  `__CPROVER_assume` writes the precondition down. `tmp::add` takes two `int`
+  and returns an `int`, so it cannot promise anything when the true sum does
+  not fit, which is the same limitation [fuzz/](fuzz/)'s harness already
+  documents. The proofs state that contract and then prove the function
+  correct inside it, against a `long long` oracle, rather than suppressing the
+  overflow check.
+
+  The canary is the part that matters. A proof gate does not fail loudly, it
+  reports success: an over-strong `__CPROVER_assume` proves a vacuous theorem
+  and prints `VERIFICATION SUCCESSFUL`. So
+  `scripts/check-proofs.sh --self-test` plants a wrong answer at one input the
+  tests never sample, requires CBMC to fail on it, and requires it to pass
+  again after the restore. Measured: 11 of 11 unit tests still pass with that
+  bug in place, and CBMC catches it.
+
+  CBMC carries its own SAT solver, so `CBMC_VERSION` is pinned in the
+  Dockerfile and the gate fails when the installed version disagrees. A proof
+  is only as good as the solver that checked it.
+
 * **Fuzzing.** A libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
   through the `fuzz` preset. CI smoke-runs it seeded from the committed
   regression corpus (`fuzz/corpus/<target>/`) and uploads any crash input
