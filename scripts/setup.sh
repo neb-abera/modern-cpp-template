@@ -153,7 +153,7 @@ REQUIRED_CHECKS=(
   "fuzz smoke (libFuzzer)"
   "bench smoke (Google Benchmark)"
   "dependency review"
-  "verify extras (proofs, canary, purity, strict, exe, drift)"
+  "verify extras (canary, purity, strict, exe, drift)"
   "container scan (trivy)"
   "prose"
 )
