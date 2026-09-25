@@ -156,6 +156,7 @@ REQUIRED_CHECKS=(
   "verify extras (canary, purity, strict, exe, drift)"
   "container scan (trivy)"
   "prose"
+  "attribution (no AI credit in commits)"
 )
 
 step "Enabling branch protection on $default_branch (${#REQUIRED_CHECKS[@]} required checks)"
