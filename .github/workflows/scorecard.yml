@@ -12,9 +12,12 @@ on:
 permissions:
   contents: read
 
+# A newer push to a pull request makes the running check obsolete, so it is
+# cancelled. A push to the default branch is never cancelled: two merges
+# minutes apart would otherwise cancel the first merge's runs on main.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:
