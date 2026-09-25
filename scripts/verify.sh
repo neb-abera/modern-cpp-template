@@ -26,13 +26,21 @@
 #       type, not the inputs the tests sample
 #   15. proof canary: a planted bug the tests cannot see must make CBMC fail,
 #       so the proofs are load-bearing rather than vacuous
-#   16. required-contexts drift guard: setup.sh's branch-protection list
-#       matches the gate workflows' job names
+#   16. required-checks drift guard: .github/required-checks, the list
+#       setup.sh sends to branch protection, matches the gate workflows'
+#       job names (self-test first)
 #   17. sources are clang-format clean (skipped if clang-format is missing)
 #   18. prose: every tracked Markdown file passes the writing rules in
 #       .vale/styles/Abera (the checker first proves every rule fires on a
 #       fixture and that clean prose passes; skipped if Docker is missing,
 #       as inside the toolchain container, where CI's prose job covers it)
+#   19. attribution: no commit on this branch credits an AI (self-test first)
+#   20. setup.sh self-test: the rename, run against a copy named
+#       fake-widget, leaves no template name in any tracked file (NOTICE
+#       included), sends the settings and required checks, and the renamed
+#       project builds and passes its tests
+#   21. template parity: every file .template-parity lists is byte-identical
+#       to modern-webapp-template's default branch (self-test first)
 #
 # VERIFY_CHECKS selects a subset by tag (default: all of them), e.g.
 #   VERIFY_CHECKS="release strict exe install size size-canary canary contexts" ./scripts/verify.sh
@@ -68,7 +76,7 @@ fi
 
 # Check tags, in run order; VERIFY_CHECKS (space-separated tags) selects a
 # subset. Each check below is wrapped in `if enabled <tag>`.
-ALL_CHECKS="release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary proof proof-canary contexts format prose attribution"
+ALL_CHECKS="release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary proof proof-canary contexts format prose attribution setup parity"
 SELECTED=${VERIFY_CHECKS:-$ALL_CHECKS}
 enabled() { case " $SELECTED " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 # shellcheck disable=SC2086
@@ -399,21 +407,17 @@ fi
 fi
 
 if enabled contexts; then
-banner "Required-contexts drift guard (setup.sh vs gate workflow job names)"
-./scripts/check-required-contexts.sh > "$LOG" 2>&1
-case $? in
-  0)
-    cat "$LOG"
-    pass "Required contexts match the gate workflows' job names"
-    ;;
-  2)
-    skip "Required-contexts drift guard (python3 with PyYAML not available)"
-    ;;
-  *)
-    cat "$LOG"
-    fail "Required-contexts drift guard (setup.sh and workflows disagree)"
-    ;;
-esac
+banner "Required-checks drift guard (.github/required-checks vs the workflows' job names)"
+# The self-test first: it renames a check, drops a trigger, adds an
+# unlisted job and plants an unsafe name, and requires each caught.
+if ./scripts/check-required-contexts.sh --self-test > "$LOG" 2>&1 \
+   && ./scripts/check-required-contexts.sh >> "$LOG" 2>&1; then
+  cat "$LOG"
+  pass "Required checks match the gate workflows' job names (and the checker caught a renamed check)"
+else
+  cat "$LOG"
+  fail "Required-checks drift guard (a check/job mismatch, or the checker's self-test)"
+fi
 fi
 
 if enabled format; then
@@ -466,6 +470,34 @@ elif ./scripts/check-prose.sh --self-test > "$LOG" 2>&1 \
 else
   tail -40 "$LOG"
   fail "Prose (a rule violation in a Markdown file, or a broken self-test)"
+fi
+fi
+
+if enabled setup; then
+banner "setup.sh self-test: rename a copy and look for the template's names"
+# Needs git, perl, cmake and a compiler, all in the toolchain image; the
+# rename runs against a temporary copy and a stub gh, never this checkout
+# or GitHub.
+if ./scripts/setup.sh --self-test > "$LOG" 2>&1; then
+  grep -E '^self-test' "$LOG" || true
+  pass "setup.sh: the renamed copy names no template, builds and passes its tests"
+else
+  grep -vE '^    ' "$LOG" | tail -40
+  fail "setup.sh self-test (a template name survived the rename, or the renamed project failed)"
+fi
+fi
+
+if enabled parity; then
+banner "Template parity: shared files match modern-webapp-template"
+# Exit 2 is a failed fetch, an outage rather than drift; it still fails
+# here, because a check that cannot run has not passed.
+if ./scripts/check-template-parity.sh --self-test > "$LOG" 2>&1 \
+   && ./scripts/check-template-parity.sh >> "$LOG" 2>&1; then
+  grep -E '^self-test: [a-z]' "$LOG" | tail -1 || true
+  pass "Every file in .template-parity matches the template"
+else
+  tail -30 "$LOG"
+  fail "Template parity (a shared file drifted, a listed file is missing, or the template could not be fetched)"
 fi
 fi
 

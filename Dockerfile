@@ -3,6 +3,14 @@
 # script reads it from here rather than pinning a version of its own.
 FROM jdkato/vale:v3.22.0@sha256:0ef74c2c8331a2cc8739ecc8b4f7cc6672e61524c3697e8c8857bc86b724a28e AS vale
 
+# Workflow and script linters, for scripts/lint.sh, which builds this stage
+# alone (`--target lint`). Both tools are FROM lines Dependabot sees and
+# bumps. shellcheck is copied over the one the actionlint image bundles, so
+# its version is the pin below and not whatever that image shipped with.
+FROM koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d AS shellcheck
+FROM rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 AS lint
+COPY --from=shellcheck /bin/shellcheck /usr/local/bin/shellcheck
+
 # Pinned by digest so every build resolves the same base image; Dependabot's
 # docker ecosystem keeps the digest current. 26.04 LTS digest as of 2026-08-30.
 FROM ubuntu:26.04@sha256:513c074113a871b51a8d16ab445c88779d6452d937a164fb5cc479f32668a41d
@@ -64,6 +72,9 @@ ENV VCPKG_ROOT=/opt/vcpkg
 # Run as the image's non-root 'ubuntu' user (uid 1000) rather than root
 USER ubuntu
 WORKDIR /home/ubuntu
+# `make shell` runs as the host user, who may not be uid 1000. Opening this
+# home lets that user reach Conan in ~/.local/bin. Nothing secret lives here.
+RUN chmod 755 /home/ubuntu
 
 # Conan 2 (optional package manager), isolated via pipx; its venv's
 # setuptools/msgpack are upgraded past known CVEs

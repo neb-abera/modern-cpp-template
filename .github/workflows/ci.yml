@@ -14,10 +14,12 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same branch makes the running check obsolete.
+# A newer push to a pull request makes the running check obsolete, so it is
+# cancelled. A push to the default branch is never cancelled: two merges
+# minutes apart would otherwise cancel the first merge's runs on main.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -290,10 +292,11 @@ jobs:
         clang-format --dry-run --Werror src/**/*.cpp include/**/*.hpp test/**/*.cpp fuzz/**/*.cpp bench/**/*.cpp
 
   # Lint the linters: actionlint keeps the workflow files themselves honest
-  # (expression typos, wrong action inputs, shellcheck on run: blocks) and
-  # shellcheck covers the repository's scripts. The actionlint binary is
-  # pinned by version and SHA-256, matching the SHA-pinning discipline used
-  # for actions.
+  # (expression typos, wrong action inputs, shellcheck on run: blocks),
+  # shellcheck covers the repository's scripts, and no workflow cancels a
+  # run on the default branch. Both tools come from the Dockerfile's `lint`
+  # stage, two digest-pinned FROM lines Dependabot bumps, so no version is
+  # written here. The self-test plants one defect per check first.
   lint:
     name: lint workflows and scripts (actionlint + shellcheck)
     runs-on: ubuntu-latest
@@ -302,33 +305,20 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
-        egress-policy: block
-        allowed-endpoints: >
-          github.com:443
-          api.github.com:443
-          objects.githubusercontent.com:443
-          release-assets.githubusercontent.com:443
+        # Audit, not block: this job builds/runs containers, and container-side
+        # DNS bypasses harden-runner's resolver, so blocked lookups surface as
+        # refused raw-IP dials. Host-process jobs stay on block.
+        egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
 
-    - name: install actionlint (pinned, checksum-verified)
-      run: |
-        set -euo pipefail
-        version=1.7.12
-        sha256=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
-        curl -fsSL -o actionlint.tar.gz \
-          "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz"
-        echo "${sha256}  actionlint.tar.gz" | sha256sum -c -
-        tar -xzf actionlint.tar.gz actionlint
-        rm actionlint.tar.gz
+    - name: prove each lint fails on a planted defect
+      run: ./scripts/lint.sh --self-test
 
-    - name: actionlint over the workflows
-      run: ./actionlint -color
-
-    - name: shellcheck over the scripts
-      run: shellcheck scripts/*.sh
+    - name: actionlint and shellcheck over the repository
+      run: ./scripts/lint.sh
 
   # Flags known-vulnerable dependencies introduced by a PR, from the diff of
   # the dependency graph (actions and docker ecosystems here).
@@ -581,7 +571,9 @@ jobs:
 
   # The verify.sh checks no dedicated job above covers: strict standard mode,
   # executable-mode smoke, install-tree purity, the release size budget and
-  # its canary, the mutation canary and the required-contexts drift guard.
+  # its canary, the mutation canary, the proofs and their canary, the
+  # required-contexts drift guard, the setup.sh rename self-test and
+  # template parity.
   # Runs the same script CI's other jobs mirror, restricted to those checks
   # via VERIFY_CHECKS (release is included because the strict/install/size/
   # canary checks read its build tree). This is what makes the README's "CI
@@ -627,7 +619,7 @@ jobs:
           -e GITHUB_STEP_SUMMARY=/out/step-summary.md toolchain bash -c '
           set -e
           cp -r /src "$HOME/project" && cd "$HOME/project"
-          VERIFY_CHECKS="release strict exe install size size-canary canary proof proof-canary contexts" ./scripts/verify.sh
+          VERIFY_CHECKS="release strict exe install size size-canary canary proof proof-canary contexts setup parity" ./scripts/verify.sh
         '
 
     - name: append verify tally to the job summary
