@@ -68,7 +68,7 @@ fi
 
 # Check tags, in run order; VERIFY_CHECKS (space-separated tags) selects a
 # subset. Each check below is wrapped in `if enabled <tag>`.
-ALL_CHECKS="release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary proof proof-canary contexts format prose"
+ALL_CHECKS="release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary proof proof-canary contexts format prose attribution"
 SELECTED=${VERIFY_CHECKS:-$ALL_CHECKS}
 enabled() { case " $SELECTED " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 # shellcheck disable=SC2086
@@ -428,6 +428,23 @@ if command -v clang-format > /dev/null; then
   fi
 else
   skip "clang-format check (clang-format not installed)"
+fi
+fi
+
+if enabled attribution; then
+banner "Attribution: no commit on this branch credits an AI"
+# The commit-msg hook and the Claude PreToolUse gate both run on the machine
+# making the commit, so neither sees one made anywhere they are not installed.
+# This is the one that runs where the merge happens. The self-test first: it
+# plants a trailer and a generated-with line in throwaway repositories and
+# requires both refused.
+if ./scripts/check-attribution.sh --self-test > "$LOG" 2>&1 \
+   && ./scripts/check-attribution.sh >> "$LOG" 2>&1; then
+  grep -E '^check-attribution|^attribution:' "$LOG" || true
+  pass "No commit on this branch credits an AI"
+else
+  tail -30 "$LOG"
+  fail "Attribution (a commit carries an AI credit, or a broken self-test)"
 fi
 fi
 
