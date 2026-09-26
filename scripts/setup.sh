@@ -354,16 +354,16 @@ else
 fi
 
 #
-# 5. Let workflows open pull requests. The monthly fetchcontent-upgrade
-#    workflow proposes dependency-pin bumps as PRs; without this repository
-#    setting its create-pull-request step fails. Default token permissions
+# 5. Let workflows open pull requests. The fetchcontent-upgrade and llvm-upgrade
+#    workflows propose pin bumps as PRs; without this repository
+#    setting their create-pull-request step fails. Default token permissions
 #    stay read-only — workflows that need more grant it per job.
 #
 
 gh api -X PUT "repos/$owner_repo/actions/permissions/workflow" \
   -f default_workflow_permissions=read \
   -F can_approve_pull_request_reviews=true > /dev/null
-done_ "workflows may open PRs (fetchcontent-upgrade); default token stays read-only"
+done_ "workflows may open PRs (fetchcontent-upgrade, llvm-upgrade); default token stays read-only"
 
 #
 # 6. GitHub Pages for the Doxygen docs (docs.yml deploys on pushes)

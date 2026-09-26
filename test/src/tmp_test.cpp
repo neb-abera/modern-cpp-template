@@ -47,17 +47,22 @@ TEST(TmpAddTest, HandlesExtremesWithoutOverflowing)
 
 // Fixture example: share expensive or repeated setup between related tests.
 
-class TmpAddFixture : public ::testing::Test
+namespace
 {
- protected:
-  [[nodiscard]] int base() const
-  {
-    return base_;
-  }
 
- private:
-  int base_ = tmp::add(1, 1);
-};
+  class TmpAddFixture : public ::testing::Test
+  {
+   protected:
+    [[nodiscard]] int base() const
+    {
+      return base_;
+    }
+
+   private:
+    int base_ = tmp::add(1, 1);
+  };
+
+}  // namespace
 
 TEST_F(TmpAddFixture, CanBuildOnFixtureState)
 {
@@ -68,9 +73,14 @@ TEST_F(TmpAddFixture, CanBuildOnFixtureState)
 // Parameterized example: table-driven cases keep edge cases enumerable and
 // make adding a new failing case (TDD's "red" step) a one-line change.
 
-class TmpAddParamTest : public ::testing::TestWithParam<std::tuple<int, int, int>>
+namespace
 {
-};
+
+  class TmpAddParamTest : public ::testing::TestWithParam<std::tuple<int, int, int>>
+  {
+  };
+
+}  // namespace
 
 TEST_P(TmpAddParamTest, AddsPairsFromTable)
 {
