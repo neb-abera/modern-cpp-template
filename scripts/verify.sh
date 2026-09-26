@@ -4,6 +4,7 @@
 # running pass/fail count and a final summary. This mirrors what CI checks
 # before a merge:
 #
+#    0. verify itself: a check whose prerequisite failed is skipped (below)
 #    1. clean Release build with warnings-as-errors + full test suite
 #    2. the same tests under AddressSanitizer + UndefinedBehaviorSanitizer
 #    3. the same tests under ThreadSanitizer
@@ -48,6 +49,18 @@
 # job covers. The strict/install/size/size-canary/canary tags read the
 # release build tree, so include release with them.
 #
+# A check that needs an earlier one is skipped when that one failed, and the
+# skip names it. Strict mode, the install tree, the size budget and its
+# canary read the release build tree. The mutation canary rebuilds it and
+# needs green tests. The proof canary needs green proofs. So the report
+# leads with the failure that caused the rest: a canary scored against a
+# suite that already fails would count those failures as a caught bug. The
+# `self` check proves it: scripts/verify.sh --self-test runs this script on
+# copies of the tree with cmake, ctest and the other checkers stubbed. A
+# green copy must run the mutation canary and pass. A copy that does not
+# build must report the build as its one failure and run nothing that needs
+# it. A copy whose tests fail must not score the canary.
+#
 # When GITHUB_STEP_SUMMARY is set (GitHub Actions, or exported locally) the
 # final tally is also appended there as markdown; runs without it change
 # nothing.
@@ -57,6 +70,108 @@
 set -u
 
 cd "$(dirname "$0")/.." || exit 1
+
+# verify_self_test: run this script on stubbed copies of the tree (see the
+# header) and check what it ran and what it reported.
+verify_self_test() {
+  local dir bin failed=0 code out ran
+  dir="$(mktemp -d)"
+  # shellcheck disable=SC2064 # expand now: the directory name is fixed
+  trap "rm -rf '$dir'" EXIT
+  bin="$dir/bin"
+  mkdir -p "$bin"
+  # cmake and ctest: every call is logged. The build fails when
+  # STUB_BUILD=fail, and writes what strict mode and the size checks read
+  # otherwise. The install writes the tree the purity check expects. The
+  # tests fail when STUB_TESTS=fail, and when the mutation canary's planted
+  # subtraction is in the tree.
+  cat > "$bin/cmake" <<'STUB'
+#!/usr/bin/env bash
+printf 'cmake %s\n' "$*" >> "$STUB_LOG"
+proj=$(sed -n 's/^[[:space:]]*"\([A-Za-z0-9_-]*\)"[[:space:]]*$/\1/p' CMakeLists.txt | head -1)
+lower=$(printf '%s' "$proj" | tr '[:upper:]' '[:lower:]')
+case "$1" in
+  --build)
+    if [ "${STUB_BUILD:-}" = fail ]; then echo "error: planted: expected ';' before '}' token"; exit 1; fi
+    mkdir -p build/release/CMakeFiles/lib.dir
+    echo "CXX_FLAGS = -std=c++26" > build/release/CMakeFiles/lib.dir/flags.make
+    : > "build/release/lib$proj.a" ;;
+  --install)
+    args="$*"
+    prefix="${args##*--prefix }"
+    mkdir -p "$prefix/include/$lower" "$prefix/share/doc/$proj"
+    touch "$prefix/include/$lower/tmp.hpp" "$prefix/include/$lower/version.hpp" \
+      "$prefix/share/doc/$proj/LICENSE" "$prefix/share/doc/$proj/NOTICE" ;;
+esac
+exit 0
+STUB
+  cat > "$bin/ctest" <<'STUB'
+#!/usr/bin/env bash
+printf 'ctest %s\n' "$*" >> "$STUB_LOG"
+if [ "${STUB_TESTS:-}" = fail ] || grep -q 'return lhs - rhs;' src/tmp.cpp; then
+  echo "80% tests passed, 1 tests failed out of 5"
+  exit 8
+fi
+echo "100% tests passed, 0 tests failed out of 5"
+STUB
+  chmod +x "$bin/cmake" "$bin/ctest"
+
+  # run_copy <scenario> [VAR=value...]: verify.sh on a fresh copy of the
+  # tree, the size checker replaced by one that passes, running the checks
+  # that read the release build. Sets code, out and ran (the calls it made).
+  run_copy() {
+    local copy="$dir/$1"
+    shift
+    mkdir -p "$copy"
+    tar --exclude=./build --exclude=./.git -cf - . | tar -xf - -C "$copy"
+    printf '#!/bin/sh\nexit 0\n' > "$copy/scripts/check-size-budget.sh"
+    : > "$copy.calls"
+    code=0
+    out="$(cd "$copy" && env -u GITHUB_STEP_SUMMARY PATH="$bin:$PATH" STUB_LOG="$copy.calls" NO_COLOR=1 \
+      VERIFY_CHECKS="release strict install size size-canary canary" "$@" ./scripts/verify.sh 2>&1)" || code=$?
+    ran="$(cat "$copy.calls")"
+  }
+  ok() { echo "self-test: ok: $1"; }
+  flunk() { echo "self-test FAILED: $1" >&2; printf '%s\n' "$out" | tail -30 | sed 's/^/    /' >&2; failed=1; }
+  check() { if "${@:2}"; then ok "$1"; else flunk "$1"; fi; }
+  # shellcheck disable=SC2329  # invoked through check()
+  canary_ran() { [ "$(grep -c '^ctest' <<< "$ran")" -ge 2 ]; }
+  # shellcheck disable=SC2329  # invoked through check()
+  canary_did_not_run() { ! canary_ran; }
+  # shellcheck disable=SC2329  # invoked through check()
+  not_installed() { ! grep -q '^cmake --install' <<< "$ran"; }
+  failures() { printf '%s\n' "$out" | awk '/^FAILURES:/ { f = 1; next } /^NOT RUN/ { f = 0 } f && sub(/^  - /, "")'; }
+
+  run_copy green
+  check "a tree whose checks all pass exits 0 (exit $code)" [ "$code" -eq 0 ]
+  check "and it ran the mutation canary" canary_ran
+  check "and the install tree check" grep -q '^cmake --install' <<< "$ran"
+
+  run_copy nobuild STUB_BUILD=fail
+  check "a tree that does not build fails the run (exit $code)" [ "$code" -eq 1 ]
+  check "the build is the one failure reported" [ "$(failures)" = "Release build (does not compile)" ]
+  check "the install tree check never ran" not_installed
+  check "and it is reported as not run, naming the build" \
+    grep -q '^\[SKIP\] Install tree purity (not run: "Release build (does not compile)" failed first)' <<< "$out"
+  check "so is the mutation canary" \
+    grep -q '^\[SKIP\] Mutation canary (not run: "Release build (does not compile)" failed first)' <<< "$out"
+
+  run_copy notests STUB_TESTS=fail
+  check "failing tests fail the run (exit $code)" [ "$code" -eq 1 ]
+  check "they are the one failure reported" [ "$(failures)" = "Release tests" ]
+  check "and the mutation canary is not scored against them" canary_did_not_run
+  check "it says why" grep -q '^\[SKIP\] Mutation canary (not run: "Release tests" failed first)' <<< "$out"
+
+  if [ "$failed" -eq 0 ]; then
+    echo "self-test: a green tree ran every check, a build that did not compile stopped the checks that need it and was the one failure named, and failing tests kept the canary from running"
+  fi
+  return "$failed"
+}
+
+if [ "${1:-}" = --self-test ]; then
+  verify_self_test
+  exit $?
+fi
 
 # The CMake project name, read from CMakeLists.txt, so a rename (e.g. via
 # scripts/setup.sh) needs no edits here.
@@ -76,7 +191,7 @@ fi
 
 # Check tags, in run order; VERIFY_CHECKS (space-separated tags) selects a
 # subset. Each check below is wrapped in `if enabled <tag>`.
-ALL_CHECKS="release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary proof proof-canary contexts format prose attribution setup parity"
+ALL_CHECKS="self release asan tsan coverage tidy fuzz bench strict exe install size size-canary canary proof proof-canary contexts format prose attribution setup parity"
 SELECTED=${VERIFY_CHECKS:-$ALL_CHECKS}
 enabled() { case " $SELECTED " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 # shellcheck disable=SC2086
@@ -123,6 +238,29 @@ skip() {
   printf '%s[SKIP]%s %s\n' "$YELLOW" "$RESET" "$1"
 }
 
+# What a later check depends on, and the failed check that broke it: one
+# "<key><TAB><check name>" line per broken prerequisite (see the header).
+BROKEN=""
+broke() { BROKEN="$BROKEN$1"$'\t'"$2"$'\n'; }
+NOT_RUN=""
+# blocked <key> <check> <prerequisite key>...: when a prerequisite is
+# broken, skip <check> naming the failure behind it, mark <key> broken by
+# the same failure for the checks after, and succeed.
+blocked() {
+  local key="$1" what="$2" p cause
+  shift 2
+  for p; do
+    cause="$(printf '%s' "$BROKEN" | awk -F '\t' -v k="$p" '$1 == k { print $2; exit }')"
+    if [ -n "$cause" ]; then
+      broke "$key" "$cause"
+      NOT_RUN="$NOT_RUN  - $what\n"
+      skip "$what (not run: \"$cause\" failed first)"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # Parse the ctest summary line and add to the tally. Depending on the CTest
 # version the line reads "100% tests passed out of M" on success or
 # "X% tests passed, N tests failed out of M" on failure.
@@ -149,12 +287,29 @@ run_suite() {
   grep -q '100% tests passed' "$LOG"
 }
 
+if enabled self; then
+banner "Verify itself: a failed check stops the checks that need it"
+if ./scripts/verify.sh --self-test > "$LOG" 2>&1; then
+  grep -E '^self-test' "$LOG" || true
+  pass "A build that does not compile stops the checks that need it, and is the failure reported"
+else
+  cat "$LOG"
+  fail "Verify itself (the self-test: a check ran without its prerequisite, or the report named the wrong failure)"
+fi
+fi
+
 if enabled release; then
 banner "Release build + full test suite (warnings as errors)"
 if run_suite release "-D${PROJ}_WARNINGS_AS_ERRORS=ON"; then
   count_ctest; pass "Release: clean build, all tests green"
+elif ! grep -Eq 'tests passed|No tests were found' "$LOG"; then
+  # run_suite stops before ctest when configure or the build fails.
+  broke build "Release build (does not compile)"
+  fail "Release build (does not compile)"
 else
-  count_ctest; fail "Release build/tests"
+  count_ctest
+  broke tests "Release tests"
+  fail "Release tests"
 fi
 fi
 
@@ -258,6 +413,7 @@ fi
 
 if enabled strict; then
 banner "Strict C++ standard mode"
+if ! blocked strict "Strict standard mode" build; then
 flag=$(grep -rho '\-std=[^ ]*' build/release/CMakeFiles/*.dir/flags.make 2>/dev/null | sort -u | head -1)
 if printf '%s' "$flag" | grep -q '^-std=c++'; then
   echo "compiler flag: $flag"
@@ -265,6 +421,7 @@ if printf '%s' "$flag" | grep -q '^-std=c++'; then
 else
   echo "compiler flag: ${flag:-<none found>}"
   fail "Strict standard mode (expected -std=c++NN)"
+fi
 fi
 fi
 
@@ -285,7 +442,9 @@ fi
 if enabled install; then
 banner "Install tree purity"
 rm -rf build/verify-install
-if cmake --install build/release --prefix build/verify-install > "$LOG" 2>&1 \
+if blocked install "Install tree purity" build; then
+  :
+elif cmake --install build/release --prefix build/verify-install > "$LOG" 2>&1 \
    && [ -f build/verify-install/include/"${PROJ_LOWER}"/tmp.hpp ] \
    && [ -f build/verify-install/include/"${PROJ_LOWER}"/version.hpp ] \
    && [ -f "build/verify-install/share/doc/${PROJ}/LICENSE" ] \
@@ -314,6 +473,8 @@ if enabled size; then
 banner "Size budget: stripped release artifact vs size-budget.txt"
 if [ "$(uname -s)" != "Linux" ]; then
   skip "Size budget (the budget is set for the Linux toolchain container; use make verify-docker)"
+elif blocked size "Size budget" build; then
+  :
 elif ./scripts/check-size-budget.sh "$(release_artifact)" size-budget.txt > "$LOG" 2>&1; then
   cat "$LOG"
   pass "Size budget: the stripped release artifact fits the committed budget"
@@ -325,7 +486,9 @@ fi
 
 if enabled size-canary; then
 banner "Size-budget canary: does the size gate fail when it should?"
-if ./scripts/check-size-budget.sh --self-test "$(release_artifact)" > "$LOG" 2>&1; then
+if blocked size-canary "Size-budget canary" build; then
+  :
+elif ./scripts/check-size-budget.sh --self-test "$(release_artifact)" > "$LOG" 2>&1; then
   cat "$LOG"
   pass "Size-budget canary: one byte over, a missing artifact and a missing budget all fail"
 else
@@ -336,6 +499,9 @@ fi
 
 if enabled canary; then
 banner "Mutation canary: do the tests catch a planted bug?"
+# Against a suite that already fails, any failure count would score as a
+# caught bug, so the canary needs a build and green tests.
+if ! blocked canary "Mutation canary" build tests; then
 # Back up and restore via a plain file copy, so this works in containers and
 # source exports where no git metadata is available.
 BACKUP="$(mktemp)"
@@ -375,6 +541,7 @@ else
   skip "Mutation canary (could not plant the mutation; src/tmp.cpp changed?)"
 fi
 fi
+fi
 
 if enabled proof; then
 banner "Proofs under CBMC (bounded model checking, all inputs)"
@@ -385,6 +552,7 @@ elif ./scripts/check-proofs.sh > "$LOG" 2>&1; then
   pass "CBMC: every proof harness verified for all inputs of the type"
 else
   grep -E 'FAILURE|VERIFICATION|^error' "$LOG" | head -20 || tail -20 "$LOG"
+  broke proof "Proofs (CBMC)"
   fail "Proofs (CBMC)"
 fi
 fi
@@ -397,6 +565,8 @@ banner "Proof canary: are the proofs load-bearing, or vacuous?"
 # to fail on it, and requires it to pass again once the source is restored.
 if ! command -v cbmc > /dev/null; then
   skip "Proof canary (cbmc not installed)"
+elif blocked proof-canary "Proof canary" proof; then
+  :
 elif ./scripts/check-proofs.sh --self-test > "$LOG" 2>&1; then
   grep -E '^self-test' "$LOG" || true
   pass "Proof canary: CBMC caught a planted bug the tests miss, and passed again after the restore"
@@ -537,5 +707,9 @@ if [ "$CHECKS_FAILED" -eq 0 ]; then
 else
   printf '%s%sFAILURES:%s\n' "$BOLD" "$RED" "$RESET"
   printf '%b' "$FAILED_NAMES"
+  if [ -n "$NOT_RUN" ]; then
+    printf '%sNOT RUN, because a check they need failed:%s\n' "$YELLOW" "$RESET"
+    printf '%b' "$NOT_RUN"
+  fi
   exit 1
 fi
