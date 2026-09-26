@@ -28,7 +28,7 @@ concurrency:
 jobs:
   build:
     name: docs build (toolchain container)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
     - name: harden runner
@@ -79,7 +79,7 @@ jobs:
     # Pull requests only build; publishing happens on the default branch.
     if: github.event_name != 'pull_request'
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       pages: write

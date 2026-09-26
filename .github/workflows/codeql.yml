@@ -49,7 +49,7 @@ jobs:
             runner: ubuntu-26.04
           - language: actions
             build-mode: none
-            runner: ubuntu-latest
+            runner: ubuntu-26.04
 
     steps:
     - name: harden runner

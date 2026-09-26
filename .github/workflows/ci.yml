@@ -27,7 +27,7 @@ concurrency:
 jobs:
   build:
     name: build & test (toolchain container)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
 
     steps:
@@ -121,7 +121,7 @@ jobs:
 
   sanitizers:
     name: sanitizers (ASan + UBSan)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
 
     steps:
@@ -170,7 +170,7 @@ jobs:
 
   coverage:
     name: coverage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
 
     steps:
@@ -251,7 +251,7 @@ jobs:
 
   format:
     name: clang-format
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
 
     steps:
@@ -298,7 +298,7 @@ jobs:
   # written here. The self-test plants one defect per check first.
   lint:
     name: lint workflows and scripts (actionlint + shellcheck)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
     - name: harden runner
@@ -332,7 +332,7 @@ jobs:
   dependency-review:
     name: dependency review
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
     - name: harden runner
@@ -377,7 +377,7 @@ jobs:
   # ThreadSanitizer: the "C++ Concurrency in Action" material as a gate.
   tsan:
     name: thread sanitizer (TSan)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
     - name: harden runner
@@ -434,7 +434,7 @@ jobs:
   # verification.
   static-analysis:
     name: static analysis (clang-tidy)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
     - name: harden runner
@@ -475,7 +475,7 @@ jobs:
   # (see the fuzz directory); this gate keeps the harness from rotting.
   fuzz:
     name: fuzz smoke (libFuzzer)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
     - name: harden runner
@@ -538,7 +538,7 @@ jobs:
   # noise, so CI only proves the harness builds and completes a run.
   bench:
     name: bench smoke (Google Benchmark)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
 
     steps:
@@ -589,7 +589,7 @@ jobs:
   # branch-protection context, so it stays as is when checks join the list.
   verify-extras:
     name: verify extras (canary, purity, strict, exe, drift)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
 
     steps:
@@ -643,7 +643,7 @@ jobs:
   attribution:
     name: attribution (no AI credit in commits)
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
     - name: harden runner
@@ -670,7 +670,7 @@ jobs:
 
   prose:
     name: prose
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
     - name: harden runner
