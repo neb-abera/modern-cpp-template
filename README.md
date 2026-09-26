@@ -209,7 +209,9 @@ Each source below is wired to a failing check.
 
   CBMC carries its own SAT solver, so `CBMC_VERSION` is pinned in the
   Dockerfile and the gate fails when the installed version disagrees. A proof
-  is only as good as the solver that checked it.
+  is only as good as the solver that checked it. cbmc comes from the Ubuntu
+  archive, so on a Dependabot base image bump a workflow moves the pin to the
+  new image's cbmc (`scripts/sync-cbmc.sh`) and the proofs run against it.
 
 * **Fuzzing.** A libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
   through the `fuzz` preset. CI smoke-runs it seeded from the committed

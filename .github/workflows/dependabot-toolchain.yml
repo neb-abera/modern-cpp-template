@@ -1,0 +1,101 @@
+name: Dependabot toolchain pins
+# Moves the Dockerfile's ENV CBMC_VERSION to the cbmc of a Dependabot docker
+# PR's ubuntu image, and commits the result to the PR, so the proof gate's
+# version check passes and the update can auto-merge.
+#
+# Why it exists: cbmc comes from the Ubuntu archive, so the base image
+# decides its version, and scripts/check-proofs.sh fails when the installed
+# cbmc and ENV CBMC_VERSION differ. Dependabot's docker ecosystem bumps only
+# the FROM ubuntu line, so a base image that ships another cbmc would arrive
+# red and sit open until somebody moved the pin by hand. The Rust template
+# hit the same shape with its rust-toolchain.toml on 2026-09-26.
+# scripts/sync-cbmc.sh does the rewrite and its --self-test (CI's lint job)
+# proves it. The proofs and their canary still run against the new solver.
+#
+# How: on Dependabot's own event, run the script on the PR branch, and if the
+# Dockerfile moved, commit it to the PR branch through the GraphQL API with
+# the Dependabot auto-merge token, as the NuGet lock-file workflow in
+# modern-webapp-template does. Two things follow from committing that way
+# rather than with git push:
+#  - the commit is signed by GitHub, so a signature requirement is met, and
+#  - it is a PAT, not GITHUB_TOKEN, so the push fires the PR's checks again.
+#    A GITHUB_TOKEN push would leave the new head with no checks and
+#    auto-merge waiting forever.
+# The re-fired run has the PAT's owner as actor, not Dependabot, so the actor
+# gate below stops it from running this job again: no loop.
+#
+# Same namespace rule as the auto-merge workflow: the token must be stored
+# under Settings, Secrets and variables, Dependabot, or a Dependabot-triggered
+# run cannot see it.
+on: pull_request
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  sync:
+    name: sync toolchain pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]'
+      && github.actor == 'dependabot[bot]'
+      && startsWith(github.event.pull_request.head.ref, 'dependabot/docker/')
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          # Audit, not block: this job runs a container, and container-side
+          # DNS bypasses harden-runner's resolver.
+          egress-policy: audit
+
+      - name: Checkout the PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: false
+
+      - name: Move the pin to the base image's cbmc
+        run: ./scripts/sync-cbmc.sh
+
+      - name: Commit the pin if it moved, signed, through the API
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_AUTOMERGE_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          changed="$(git status --porcelain -- Dockerfile | awk '{print $2}')"
+          if [ -z "$changed" ]; then
+            echo "The pin already names the base image's cbmc; nothing to commit."
+            exit 0
+          fi
+          echo "Files that moved:"
+          echo "$changed"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::DEPENDABOT_AUTOMERGE_TOKEN is empty, so the moved pin cannot be committed. Store it as a Dependabot secret (Settings, Secrets and variables, Dependabot) with contents:write. An Actions secret of the same name is invisible to a Dependabot-triggered run."
+            exit 1
+          fi
+          additions="$(for f in $changed; do
+            jq -n --arg path "$f" --arg contents "$(base64 < "$f" | tr -d '\n')" '{path: $path, contents: $contents}'
+          done | jq -s .)"
+          jq -n \
+            --arg repo "$REPO" --arg branch "$BRANCH" --arg head "$HEAD_SHA" \
+            --argjson additions "$additions" \
+            '{
+              query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid url } } }",
+              variables: { input: {
+                branch: { repositoryNameWithOwner: $repo, branchName: $branch },
+                expectedHeadOid: $head,
+                message: {
+                  headline: "Move the CBMC pin to the base image cbmc",
+                  body: "Dependabot bumps only the FROM ubuntu line, and scripts/check-proofs.sh fails until ENV CBMC_VERSION names the cbmc that image installs. scripts/sync-cbmc.sh moved it."
+                },
+                fileChanges: { additions: $additions }
+              } }
+            }' > "$RUNNER_TEMP/commit.json"
+          gh api graphql --input "$RUNNER_TEMP/commit.json" --jq '.data.createCommitOnBranch.commit.url'
