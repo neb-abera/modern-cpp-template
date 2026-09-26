@@ -213,10 +213,10 @@ Each source below is wired to a failing check.
   archive, so on a Dependabot base image bump a workflow moves the pin to the
   new image's cbmc (`scripts/sync-cbmc.sh`) and the proofs run against it.
 
-  The base image is an Ubuntu LTS release. `.github/dependabot.yml` ignores
-  the interim releases, so auto-merge never takes one.
-  `scripts/check-ubuntu-lts.sh`, run by `scripts/lint.sh`, fails on a
-  non-LTS tag and on ignore ranges that end within two years.
+  The base image is the newest Ubuntu release, LTS or interim.
+  `scripts/check-newest-ubuntu.sh`, run by `scripts/lint.sh`, fails when
+  `.github/dependabot.yml` holds a release back, and when the image is 45
+  days behind the newest release.
 
 * **Fuzzing.** A libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
   through the `fuzz` preset. CI smoke-runs it seeded from the committed

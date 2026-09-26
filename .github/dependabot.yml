@@ -38,16 +38,6 @@ updates:
         update-types:
           - minor
           - patch
-    # Ubuntu LTS only. An LTS is YY.04 with an even YY. The rest are interim
-    # releases with 9 months of support, and auto-merge would take them.
-    # One range per gap between two LTS releases. Dependabot reads docker
-    # ranges in Bundler syntax against the tag, so 28.04 and the digest of
-    # the current tag are still offered. scripts/check-ubuntu-lts.sh fails
-    # once the ranges stop covering the next two years: add the next
-    # ">= YY.05, < YY.04" line then.
-    ignore:
-      - dependency-name: ubuntu
-        versions:
-          - ">= 26.05, < 28.04"
-          - ">= 28.05, < 30.04"
-          - ">= 30.05, < 32.04"
+    # The newest Ubuntu release is taken, LTS or interim. No ignore range
+    # holds one back. scripts/check-newest-ubuntu.sh fails on one, and when
+    # the base image is 45 days behind the newest release.

@@ -11,8 +11,8 @@
 #   scripts/lint.sh              lint the repository
 #   scripts/lint.sh --self-test  prove each linter fails on a planted defect
 #
-# It also runs scripts/check-ubuntu-lts.sh: the Ubuntu base image is an LTS
-# tag and the Dependabot ignore ranges keep interim releases out.
+# It also runs scripts/check-newest-ubuntu.sh: the Ubuntu base image is the
+# newest release, LTS or interim, and Dependabot holds none back.
 #
 # `cancel-in-progress: true` cancels a push run on the default branch when
 # the next merge lands minutes later, so the first merge is never checked.
@@ -99,9 +99,9 @@ YAML
 
 if [ "${1:-}" = --self-test ]; then
   self_test
-  ./scripts/check-ubuntu-lts.sh --self-test
+  ./scripts/check-newest-ubuntu.sh --self-test
 else
   lint "$PWD"
   echo "actionlint and shellcheck pass"
-  ./scripts/check-ubuntu-lts.sh
+  ./scripts/check-newest-ubuntu.sh
 fi
