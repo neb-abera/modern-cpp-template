@@ -2,12 +2,14 @@
 #
 # check-newest-ubuntu.sh: the Ubuntu base image is the newest release.
 #
-# A release counts whether it is LTS or interim. A development release does
-# not: META_URL lists released versions only.
+# A release counts whether it is LTS or interim. A development release is
+# newer than every release in META_URL, which lists released versions only,
+# so a base image on one passes: it is taken once the suite is green on it.
 #   1. .github/dependabot.yml holds back no ubuntu release. An ignore entry
 #      for ubuntu may hold an exact tag, never a range or an update type.
 #   2. Every FROM ubuntu line in a tracked Dockerfile names the newest
-#      release in META_URL, once that release has been out GRACE_DAYS (45).
+#      release in META_URL or a newer development release, once that
+#      release has been out GRACE_DAYS (45).
 #      The grace covers a weekly Dependabot bump that has to be fixed
 #      before it merges.
 #
@@ -74,7 +76,7 @@ check() {
   if [ $((($(date -u +%s) - since) / 86400)) -ge "$GRACE_DAYS" ]; then
     for f in $(dockerfiles); do
       while IFS= read -r tag; do
-        if [ "$tag" != "$newest" ]; then
+        if [ "$(printf '%s\n%s\n' "$tag" "$newest" | sort -t. -k1,1n -k2,2n | head -1)" != "$newest" ]; then
           echo "error: $f: ubuntu:$tag is behind Ubuntu $newest, released $date" >&2
           status=1
         fi
@@ -104,7 +106,7 @@ self_test() {
   DIR="$(mktemp -d)"
   # shellcheck disable=SC2064 # expand now: the directory name is fixed
   trap "rm -rf '$DIR'" EXIT
-  for case in clean hold; do
+  for case in clean hold devel; do
     mkdir -p "$DIR/$case/.github"
     cp Dockerfile "$DIR/$case/Dockerfile"
     cp .github/dependabot.yml "$DIR/$case/.github/dependabot.yml"
@@ -124,6 +126,7 @@ self_test() {
   meta "$cur" "$old" > "$DIR/same"
   meta "$next" "$old" > "$DIR/behind"
   meta "$next" "$recent" > "$DIR/grace"
+  sed -i -E "s/^(FROM[[:space:]]+ubuntu:)[0-9]{2}\.[0-9]{2}/\1$next/" "$DIR/devel/Dockerfile"
   awk '{ print } /^[ ]{4}ignore:/ && !done { print "      - dependency-name: ubuntu\n        versions:\n          - \">= 99.05, < 99.10\""; done = 1 }' \
     .github/dependabot.yml > "$DIR/hold/.github/dependabot.yml"
   if ! grep -q '99.05' "$DIR/hold/.github/dependabot.yml"; then
@@ -134,6 +137,7 @@ self_test() {
   expect 0 "" "the real files pass on the newest release" clean META_URL="file://$DIR/same"
   expect 1 "is behind Ubuntu $next" "a base image a release behind past the grace fails, interim or LTS" clean META_URL="file://$DIR/behind"
   expect 0 "" "a release inside the grace passes" clean META_URL="file://$DIR/grace"
+  expect 0 "" "a development release newer than every release passes" devel META_URL="file://$DIR/same"
   expect 1 "holds back an ubuntu release" "an ignore range on ubuntu fails" hold META_URL="file://$DIR/same"
   expect 2 "an outage, not a pass" "an unreadable index is an outage" clean META_URL="file://$DIR/none"
   if [ "$SELF_TEST_FAILED" -eq 0 ]; then
