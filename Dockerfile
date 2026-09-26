@@ -25,7 +25,7 @@ FROM ubuntu:26.04@sha256:513c074113a871b51a8d16ab445c88779d6452d937a164fb5cc479f
 # good as the solver that checked it, so the gate fails when the installed
 # version and this line disagree. On a Dependabot base image bump the
 # Dependabot toolchain pins workflow moves this line with scripts/sync-cbmc.sh.
-ENV CBMC_VERSION=6.5.0
+ENV CBMC_VERSION=6.6.0
 
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
