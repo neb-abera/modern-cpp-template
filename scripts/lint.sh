@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # lint.sh — actionlint over the workflows (with shellcheck on every run:
-# block), shellcheck over scripts/*.sh, and no workflow that cancels a run
-# on the default branch.
+# block), shellcheck over scripts/*.sh, and scripts/check-concurrency.sh:
+# no workflow loses a run on the default branch to its concurrency group.
 #
 # Both tools come from the `lint` stage of the Dockerfile: two digest-pinned
 # FROM lines that Dependabot bumps. Nothing here or in a workflow names a
@@ -16,16 +16,14 @@
 # scripts/check-newest-llvm.sh: the LLVM tarball Dependabot cannot see is the
 # newest release.
 #
-# `cancel-in-progress: true` cancels a push run on the default branch when
-# the next merge lands minutes later, so the first merge is never checked.
-# A workflow cancels on pull requests only
-# (`${{ github.event_name == 'pull_request' }}`), and one that publishes uses
-# a fixed group with cancel off.
+# check-concurrency.sh says why: a push run keyed by branch or set to cancel
+# is lost when merges land minutes apart.
 #
 # --self-test copies the workflows and scripts into a temporary directory,
 # plants an unquoted expansion in a workflow's run: block, another in a
-# script, and a `cancel-in-progress: true`, and requires each copy to fail
-# naming the file. The untouched copy must pass.
+# script, a `cancel-in-progress: true` and a concurrency group keyed by
+# branch, and requires each copy to fail naming the file. The untouched copy
+# must pass.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -37,10 +35,7 @@ docker build -q --target lint -t "$IMAGE" . > /dev/null
 # checkout the image's own user cannot read still lints.
 lint() {
   local status=0
-  if (cd "$1" && grep -Hn 'cancel-in-progress: *true' .github/workflows/*.yml); then
-    echo "error: a workflow above cancels runs on the default branch; use \${{ github.event_name == 'pull_request' }}" >&2
-    status=1
-  fi
+  "$1/scripts/check-concurrency.sh" > /dev/null || status=1
   docker run --rm --user "$(id -u):$(id -g)" -v "$1":/repo:ro -w /repo \
     --entrypoint sh "$IMAGE" -c 'actionlint -color && shellcheck scripts/*.sh' || status=1
   return "$status"
@@ -73,8 +68,12 @@ self_test() {
   cp -R "$dir/clean" "$dir/workflow"
   cp -R "$dir/clean" "$dir/script"
   cp -R "$dir/clean" "$dir/cancel"
+  cp -R "$dir/clean" "$dir/branch"
   sed 's/^  cancel-in-progress: .*/  cancel-in-progress: true/' .github/workflows/ci.yml \
     > "$dir/cancel/.github/workflows/ci.yml"
+  # shellcheck disable=SC2016 # the planted group is literal text
+  sed 's/^  group: .*/  group: ${{ github.workflow }}-${{ github.ref }}/' .github/workflows/ci.yml \
+    > "$dir/branch/.github/workflows/ci.yml"
   cat > "$dir/workflow/.github/workflows/planted.yml" <<'YAML'
 name: planted
 on: push
@@ -92,15 +91,17 @@ YAML
   expect 0 "" "the real workflows and scripts pass" "$dir/clean"
   expect 1 "planted.yml" "actionlint fails a workflow run: block with an unquoted expansion" "$dir/workflow"
   expect 1 "scripts/planted.sh" "shellcheck fails a script with an unquoted expansion" "$dir/script"
-  expect 1 "ci.yml:" "a workflow that cancels runs on the default branch fails" "$dir/cancel"
+  expect 1 "ci.yml sets cancel-in-progress: true" "a workflow that cancels runs on the default branch fails" "$dir/cancel"
+  expect 1 "ci.yml keys its concurrency group without github.sha" "a push workflow keyed by branch fails" "$dir/branch"
   if [ "$SELF_TEST_FAILED" -eq 0 ]; then
-    echo "self-test: all three planted defects were caught by file; the real tree passes"
+    echo "self-test: all four planted defects were caught by file; the real tree passes"
   fi
   return "$SELF_TEST_FAILED"
 }
 
 if [ "${1:-}" = --self-test ]; then
   self_test
+  ./scripts/check-concurrency.sh --self-test
   ./scripts/check-newest-ubuntu.sh --self-test
   ./scripts/check-newest-llvm.sh --self-test
 else
