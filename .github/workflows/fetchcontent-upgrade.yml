@@ -7,7 +7,7 @@
 #
 # Runs monthly and does nothing when the pins are current. Scheduled-only:
 # this produces no PR-gating context, so it is deliberately outside
-# setup.sh's REQUIRED_CHECKS and the drift guard's scope. PRs opened with
+# .github/required-checks and the drift guard's scope. PRs opened with
 # the default workflow token do not trigger CI — close and reopen the PR
 # (or push an empty commit) to run the checks.
 name: fetchcontent-upgrade

@@ -30,14 +30,15 @@ default.
   `gtest_discover_tests`, and a mutation canary that proves the tests catch
   a planted bug.
 
-* **One verification suite.** `make verify` runs eighteen checks with a
+* **One verification suite.** `make verify` runs every check with a
   pass/fail tally: release build and tests (warnings as errors), ASan+UBSan,
   TSan, line coverage against the committed floor, clang-tidy, fuzz smoke,
   benchmark smoke, strict standard mode, executable smoke, install-tree
   purity (LICENSE and NOTICE included), the release size budget and its
   canary, the mutation canary, the CBMC proofs and the proof canary, a
-  required-contexts drift guard, clang-format and the prose check. CI gates on the identical suite inside the toolchain
-  container, plus macOS and Windows portability builds on native toolchains,
+  required-contexts drift guard, clang-format, the prose check, the
+  attribution check, the `setup.sh` self-test and template parity. CI gates
+  on the identical suite inside the toolchain container, plus macOS and Windows portability builds on native toolchains,
   warnings as errors on all three compilers. The list is at the top of
   [scripts/verify.sh](scripts/verify.sh).
 
@@ -53,10 +54,11 @@ default.
   inventory.
 
 * **Prose is linted.** `make prose` runs Vale with the rules in
-  `.vale/styles/Abera` over every Markdown file. Check 16 of the suite.
+  `.vale/styles/Abera` over every Markdown file.
 
-* **Kept current by Dependabot.** Every Action and the Docker base image are
-  pinned by commit SHA or digest with a version comment, and Dependabot
+* **Kept current by Dependabot.** Every Action, the Docker base image and
+  the linters (actionlint, shellcheck and Vale, stages of the `Dockerfile`)
+  are pinned by commit SHA or digest with a version comment, and Dependabot
   bumps pin and comment together, minor and patch grouped into one weekly PR
   per ecosystem. The `dependabot-automerge` workflow arms auto-merge on
   every Dependabot PR, majors included. A bump that passes merges itself.
@@ -94,7 +96,7 @@ cmake --preset release && cmake --build --preset release && ctest --preset relea
 ```
 
 `make help` lists the rest (`test`, `coverage`, `asan`, `bench`, `docs`,
-`format`, `prose`).
+`format`, `lint`, `prose`).
 
 Host builds and container builds must not share a `build/` directory. The
 CMake cache records absolute compiler paths. `rm -rf build/` when switching
@@ -234,7 +236,11 @@ include directory and every `#include` of it, and the README badges and
 links, the Codecov coverage badge included) and enables the repository
 settings templates cannot carry over: secret scanning, push protection,
 private vulnerability reporting, Dependabot alerts and security updates,
-GitHub Pages, and branch protection requiring the gating CI checks.
+GitHub Pages, Update branch, Allow auto-merge, and branch protection
+requiring the gating CI checks. `./scripts/setup.sh --self-test` renames a
+copy of the tree to `fake-widget`, fails on any template name left behind,
+NOTICE included, and builds and tests the result. CI runs it on every pull
+request.
 
 ```bash
 ./scripts/setup.sh
@@ -242,10 +248,10 @@ GitHub Pages, and branch protection requiring the gating CI checks.
 
 It needs the [GitHub CLI](https://cli.github.com) authenticated as a repo
 admin, and it is safe to re-run. The `dependabot-automerge` workflow also
-needs the repository's Allow auto-merge setting and a
-`DEPENDABOT_AUTOMERGE_TOKEN` secret (a fine-grained PAT with contents and
-pull-requests write, so the merge still triggers workflows, which
-`GITHUB_TOKEN` merges do not). Until both exist it warns and does nothing.
+needs a `DEPENDABOT_AUTOMERGE_TOKEN` secret in the Dependabot namespace (a
+fine-grained PAT with contents and pull-requests write, so the merge still
+triggers workflows, which `GITHUB_TOKEN` merges do not). Until it exists
+that job fails on every Dependabot pull request and nothing merges itself.
 The coverage badge, rewritten to your repository by the same rename, reads
 "unknown" until a `CODECOV_TOKEN` secret is added and coverage uploads once.
 

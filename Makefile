@@ -1,4 +1,4 @@
-.PHONY: install coverage test asan bench proof verify verify-docker shell docs format prose help
+.PHONY: install coverage test asan bench proof verify verify-docker shell docs format prose lint help
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -29,6 +29,13 @@ INSTALL_LOCATION := ~/.local
 # Docker image/container names derive from the checkout directory, so
 # projects generated from this template need no edits here.
 IMAGE := $(shell basename "$(CURDIR)" | tr '[:upper:]' '[:lower:]')
+# The shell mounts the tree read-write, so it runs as the host user: a file
+# it writes (build/, a reformatted source) belongs to whoever owns the
+# checkout, and a merged worktree can be removed without sudo. HOME points
+# somewhere that user can write, since the image's home belongs to uid 1000.
+HOST_UID ?= $(shell id -u)
+HOST_GID ?= $(shell id -g)
+export HOST_UID HOST_GID
 
 help:
 	@python3 -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
@@ -61,7 +68,8 @@ verify-docker: ## run the full verification suite inside the Docker toolchain im
 shell: ## open a development shell inside the Docker toolchain image
 	docker build -t $(IMAGE):latest .
 	docker rm -f $(IMAGE)-dev 2>/dev/null || true
-	docker run --rm -it --name $(IMAGE)-dev -v $(CURDIR):/work -w /work $(IMAGE):latest bash
+	docker run --rm -it --name $(IMAGE)-dev --user $(HOST_UID):$(HOST_GID) -e HOME=/tmp/home \
+		-v $(CURDIR):/work -w /work $(IMAGE):latest bash
 
 asan: ## build and run tests under Address/UB sanitizers
 	cmake --preset asan
@@ -82,6 +90,10 @@ install: ## install the package to the `INSTALL_LOCATION`
 format: ## format the project sources
 	cmake --preset release
 	cmake --build --preset release --target clang-format
+
+lint: ## actionlint and shellcheck from the Dockerfile's lint stage, self-test first
+	./scripts/lint.sh --self-test
+	./scripts/lint.sh
 
 prose: ## lint every tracked Markdown file against the writing rules (.vale/styles/Abera)
 	./scripts/check-prose.sh --self-test
