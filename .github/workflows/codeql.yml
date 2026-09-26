@@ -36,13 +36,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # The C++ leg runs on the ubuntu-26.04 runner image: same distro
-          # and default GCC major (15) as the toolchain container, so CodeQL
-          # observes the build CI actually gates on. Residual deviation from
-          # "train as you fight": CodeQL traces the build on the bare runner,
-          # not inside the container — its build tracer cannot follow a
-          # docker-run build without disproportionate contortions, and distro
-          # + compiler major + the same preset flags close most of the gap.
+          # The C++ leg runs on the ubuntu-26.04 runner image, the toolchain
+          # container's distro, with the container's GCC copied in from the
+          # same pinned image, so CodeQL observes the build CI gates on.
+          # CodeQL traces the build on the bare runner: its build tracer
+          # cannot follow a docker-run build.
           - language: c-cpp
             build-mode: manual
             runner: ubuntu-26.04
@@ -63,26 +61,42 @@ jobs:
           objects.githubusercontent.com:443
           release-assets.githubusercontent.com:443
           uploads.github.com:443
+          auth.docker.io:443
+          registry-1.docker.io:443
+          production.cloudflare.docker.com:443
+          index.docker.io:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
+
+    # C++ needs a real build for CodeQL to observe, with the compiler the
+    # toolchain container gates with. The runner's g++ is Ubuntu's GCC 15,
+    # so GCC is copied out of the Dockerfile's gcc stage, the same
+    # digest-pinned image, before CodeQL starts tracing. The version check
+    # makes a mismatch fail here rather than drift the analyzed build.
+    - name: use the toolchain container's GCC
+      if: matrix.language == 'c-cpp'
+      run: |
+        image="$(sed -nE 's/^FROM (gcc:[^[:space:]]+) AS gcc$/\1/p' Dockerfile)"
+        if [ -z "$image" ]; then echo "no 'FROM gcc:<tag>@<digest> AS gcc' line in Dockerfile"; exit 1; fi
+        want="${image#gcc:}"
+        want="${want%%@*}"
+        sudo mkdir -p /opt/gcc
+        docker run --rm -v /opt/gcc:/out "$image" cp -a /usr/local/. /out/
+        /opt/gcc/bin/g++ --version
+        if [ "$(/opt/gcc/bin/g++ -dumpfullversion)" != "$want" ]; then echo "expected GCC $want"; exit 1; fi
+        {
+          echo "CC=/opt/gcc/bin/gcc"
+          echo "CXX=/opt/gcc/bin/g++"
+          echo "LD_LIBRARY_PATH=/opt/gcc/lib64"
+        } >> "$GITHUB_ENV"
 
     - name: initialize CodeQL
       uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
-
-    # C++ needs a real build for CodeQL to observe. The runner's default
-    # g++ is GCC 15, the same major the toolchain container gates with; the
-    # assertion makes a runner-image compiler change fail loudly here rather
-    # than silently drift the analyzed build away from the gated one.
-    - name: assert GCC 15 (same major as the toolchain container)
-      if: matrix.language == 'c-cpp'
-      run: |
-        g++ --version
-        g++ -dumpversion | grep -qx '15' || { echo "expected GCC major 15"; exit 1; }
 
     - name: build
       if: matrix.language == 'c-cpp'

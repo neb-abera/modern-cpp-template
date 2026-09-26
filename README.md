@@ -11,7 +11,7 @@ default.
 ## Features
 
 * **Docker-first.** The host needs Docker and git. `make shell` opens a
-  toolchain shell with GCC 15, Clang 21, CMake 4.2, clang-format,
+  toolchain shell with GCC 16, Clang 23, CMake 4.2, clang-format,
   clang-tidy, Doxygen, ccache, Conan 2 and vcpkg, all pinned in the
   [`Dockerfile`](Dockerfile). `make verify-docker` runs the whole suite in a
   fresh container with the source mounted read-only.
@@ -65,7 +65,8 @@ default.
   One that breaks stays open and red. The FetchContent pins (googletest or
   Catch2, Google Benchmark) sit outside every Dependabot ecosystem, so the
   monthly `fetchcontent-upgrade` workflow moves them to the latest releases
-  and opens the PR itself.
+  and opens the PR itself. The LLVM release tarball is outside them too, so
+  the weekly `llvm-upgrade` workflow does the same for it.
 
 * **Releases from tags.** Pushing `v*` builds and tests on all three
   platforms and publishes packaged install trees to a GitHub Release, with
@@ -217,6 +218,12 @@ Each source below is wired to a failing check.
   `scripts/check-newest-ubuntu.sh`, run by `scripts/lint.sh`, fails when
   `.github/dependabot.yml` holds a release back, and when the image is 45
   days behind the newest release.
+
+  The compilers are the newest releases too. Ubuntu 26.04 ships GCC 15 and
+  LLVM 21. GCC 16 comes from the digest-pinned `gcc` image, which Dependabot
+  bumps. LLVM comes from the release tarball, checked against its SHA-256.
+  `scripts/check-newest-llvm.sh`, run by `scripts/lint.sh`, fails when a
+  newer LLVM release has been out 30 days.
 
 * **Fuzzing.** A libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
   through the `fuzz` preset. CI smoke-runs it seeded from the committed
