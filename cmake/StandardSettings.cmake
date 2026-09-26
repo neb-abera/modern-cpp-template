@@ -10,7 +10,7 @@ option(${PROJECT_NAME}_USE_ALT_NAMES "Use alternative names for the project, suc
 # Compiler options
 #
 
-# C++26 needs GCC 14+ or Clang 17+; the project's Docker image ships GCC 15.
+# C++26 needs GCC 14+ or Clang 17+; the project's Docker image ships GCC 16 and Clang 23.
 # Lower this if a toolchain you must support cannot handle it.
 set(${PROJECT_NAME}_CXX_STANDARD 26 CACHE STRING "The C++ standard the project targets (17, 20, 23 or 26).")
 
