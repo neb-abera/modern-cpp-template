@@ -28,7 +28,7 @@ What happened instead, with the relevant output or error messages.
 **Environment**
 
 * OS: [e.g. Ubuntu 26.04, macOS 15, Windows 11]
-* Compiler and version: [e.g. GCC 15, AppleClang 17, MSVC 19.4x]
+* Compiler and version: [e.g. GCC 16, AppleClang 17, MSVC 19.4x]
 * CMake version, or "toolchain container" if reproduced via `make verify-docker`
 
 **Additional context**

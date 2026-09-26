@@ -12,7 +12,9 @@
 #   scripts/lint.sh --self-test  prove each linter fails on a planted defect
 #
 # It also runs scripts/check-newest-ubuntu.sh: the Ubuntu base image is the
-# newest release, LTS or interim, and Dependabot holds none back.
+# newest release, LTS or interim, and Dependabot holds none back. And
+# scripts/check-newest-llvm.sh: the LLVM tarball Dependabot cannot see is the
+# newest release.
 #
 # check-concurrency.sh says why: a push run keyed by branch or set to cancel
 # is lost when merges land minutes apart.
@@ -101,8 +103,10 @@ if [ "${1:-}" = --self-test ]; then
   self_test
   ./scripts/check-concurrency.sh --self-test
   ./scripts/check-newest-ubuntu.sh --self-test
+  ./scripts/check-newest-llvm.sh --self-test
 else
   lint "$PWD"
   echo "actionlint and shellcheck pass"
   ./scripts/check-newest-ubuntu.sh
+  ./scripts/check-newest-llvm.sh
 fi
