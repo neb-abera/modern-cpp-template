@@ -320,6 +320,12 @@ jobs:
     - name: actionlint and shellcheck over the repository
       run: ./scripts/lint.sh
 
+    # The rewrite the Dependabot toolchain workflow runs on a base image
+    # bump: the apt version parse and the CBMC_VERSION rewrite, planted
+    # cases first.
+    - name: sync-cbmc self-test
+      run: ./scripts/sync-cbmc.sh --self-test
+
   # Flags known-vulnerable dependencies introduced by a PR, from the diff of
   # the dependency graph (actions and docker ecosystems here).
   dependency-review:
