@@ -30,7 +30,7 @@ RUN rm -rf /usr/local/bin/*go* /usr/local/bin/*gfortran* /usr/local/lib/go \
 # above, not the older one Ubuntu's cbmc package pulls in.
 # scripts/check-newest-llvm.sh fails when a newer release has been out 30
 # days, and --update moves both lines.
-FROM ubuntu:26.04@sha256:da6fc2be547864451aa253836dd926da33623312df4a9a243e35dc877c378a78 AS llvm
+FROM ubuntu:26.10@sha256:ee126c2fa0249079a7e24ae3a3d29b04783ef93ab33c868751c9a1289d3fffff AS llvm
 ENV LLVM_VERSION=23.1.2
 ENV LLVM_SHA256=6382de1c1a210ce5a5cc49d18bc8444d137742e7cbf9b19f4ae602bb1ab52534
 RUN apt-get update && \
@@ -51,8 +51,9 @@ RUN curl -fsSL -o /tmp/llvm.tar.zst \
     cp /opt/llvm/bin/clang.cfg /opt/llvm/bin/clang++.cfg
 
 # Pinned by digest so every build resolves the same base image; Dependabot's
-# docker ecosystem keeps the digest current. 26.04 LTS digest as of 2026-08-30.
-FROM ubuntu:26.04@sha256:da6fc2be547864451aa253836dd926da33623312df4a9a243e35dc877c378a78
+# docker ecosystem keeps the digest current. 26.10 is the development
+# release, taken because the full suite is green on it.
+FROM ubuntu:26.10@sha256:ee126c2fa0249079a7e24ae3a3d29b04783ef93ab33c868751c9a1289d3fffff
 
 # Base toolchain: GCC and LLVM from the stages above, CMake 4.2 from Ubuntu.
 # The unit testing frameworks (GoogleTest/Catch2) are fetched by CMake via

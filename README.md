@@ -214,7 +214,8 @@ Each source below is wired to a failing check.
   archive, so on a Dependabot base image bump a workflow moves the pin to the
   new image's cbmc (`scripts/sync-cbmc.sh`) and the proofs run against it.
 
-  The base image is the newest Ubuntu release, LTS or interim.
+  The base image is the newest Ubuntu release, LTS or interim, or the
+  development release once the suite is green on it. Today that is 26.10.
   `scripts/check-newest-ubuntu.sh`, run by `scripts/lint.sh`, fails when
   `.github/dependabot.yml` holds a release back, and when the image is 45
   days behind the newest release.

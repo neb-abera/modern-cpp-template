@@ -39,8 +39,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # The C++ leg runs on the ubuntu-26.04 runner image, the toolchain
-          # container's distro, with the container's GCC copied in from the
+          # The C++ leg runs on the ubuntu-26.04 runner image, the newest
+          # Ubuntu runner, with the container's GCC copied in from the
           # same pinned image, so CodeQL observes the build CI gates on.
           # CodeQL traces the build on the bare runner: its build tracer
           # cannot follow a docker-run build.
