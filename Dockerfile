@@ -13,7 +13,7 @@ COPY --from=shellcheck /bin/shellcheck /usr/local/bin/shellcheck
 
 # Pinned by digest so every build resolves the same base image; Dependabot's
 # docker ecosystem keeps the digest current. 26.04 LTS digest as of 2026-08-30.
-FROM ubuntu:26.04@sha256:513c074113a871b51a8d16ab445c88779d6452d937a164fb5cc479f32668a41d
+FROM ubuntu:26.04@sha256:da6fc2be547864451aa253836dd926da33623312df4a9a243e35dc877c378a78
 
 # Base toolchain. Ubuntu 26.04 LTS ships GCC 15 (full C++26 support),
 # CMake 4.2 and the LLVM 21 tools, all well above the project's minimums,
