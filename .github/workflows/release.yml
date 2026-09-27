@@ -17,18 +17,17 @@ env:
 # three tags pushed together with no release. Each tag runs on its own.
 
 jobs:
-  build:
+  build-linux:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-26.04, macos-latest, windows-latest]
+        os: [ubuntu-26.04]
 
     steps:
-    - name: harden runner (Linux)
-      if: runner.os == 'Linux'
+    - name: harden runner
       uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         # Audit, not block: this job builds/runs containers, and container-side
@@ -44,15 +43,13 @@ jobs:
     # image, the same one development and CI gating use ("train as you
     # fight") — never a hand-picked compiler on the bare runner. The macOS
     # and Windows artifacts can only be built with those platforms' native
-    # toolchains, so those legs stay on the host.
-    - name: set up Docker Buildx (Linux)
-      if: runner.os == 'Linux'
+    # toolchains, so build-other builds them on the host.
+    - name: set up Docker Buildx
       uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
     # Same GHA layer cache as the CI workflow, so a release does not pay for
     # a full image rebuild unless the Dockerfile changed since the last run.
-    - name: build toolchain image (Linux)
-      if: runner.os == 'Linux'
+    - name: build toolchain image
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       with:
         context: .
@@ -63,8 +60,7 @@ jobs:
 
     # The install tree is staged onto a world-writable host mount; the
     # source itself stays read-only, as in verify-docker.sh.
-    - name: build, test and stage in the container (Linux)
-      if: runner.os == 'Linux'
+    - name: build, test and stage in the container
       run: |
         mkdir -p staging && chmod 777 staging
         docker run --rm -v "$PWD":/src:ro -v "$PWD/staging":/out toolchain bash -c '
@@ -76,20 +72,47 @@ jobs:
           cmake --install build/release --prefix /out --config Release
         '
 
+    - name: package
+      env:
+        TAG: ${{ github.ref_name }}
+      run: tar -czf "${{ env.PROJECT_NAME }}-${{ runner.os }}-${TAG}.tar.gz" -C staging .
+
+    - name: upload artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ runner.os }}-${{ github.ref_name }}
+        path: ${{ env.PROJECT_NAME }}-*
+
+  # The macOS and Windows artifacts, built with those platforms' native
+  # toolchains and without harden-runner, as in CI's portability job.
+  # harden-runner's pre step runs whatever the step's `if` says, so a
+  # Linux-only guard still installed its agent on these runners. There it
+  # runs in audit mode for public repositories only, and a private project
+  # made from this template logged a failed agent install on every run.
+  build-other:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
     - name: configure
-      if: runner.os != 'Linux'
       run: cmake --preset release -DProject_WARNINGS_AS_ERRORS=ON
 
     - name: build
-      if: runner.os != 'Linux'
       run: cmake --build --preset release -j 4
 
     - name: run tests
-      if: runner.os != 'Linux'
       run: ctest --preset release
 
     - name: stage install tree
-      if: runner.os != 'Linux'
       run: cmake --install build/release --prefix staging --config Release
 
     # github.ref_name is passed through env rather than interpolated into the
@@ -115,7 +138,7 @@ jobs:
   release:
     runs-on: ubuntu-26.04
     timeout-minutes: 30
-    needs: build
+    needs: [build-linux, build-other]
     permissions:
       contents: write
       id-token: write
