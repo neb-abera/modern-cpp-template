@@ -26,3 +26,4 @@ scripts/check-attribution.sh
 LICENSE
 scripts/check-required-contexts.sh
 .github/PULL_REQUEST_TEMPLATE.md
+scripts/check-version.sh
