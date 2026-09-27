@@ -41,3 +41,20 @@ updates:
     # The newest Ubuntu release is taken, LTS or interim. No ignore range
     # holds one back. scripts/check-newest-ubuntu.sh fails on one, and when
     # the base image is 45 days behind the newest release.
+
+  # Conan and gcovr, installed into the toolchain image with pipx at the
+  # versions this file pins.
+  - package-ecosystem: pip
+    directory: /tools/python
+    schedule:
+      interval: weekly
+    # Wait out the first days after a release, when hijacked-package and
+    # broken-release discoveries usually happen, before taking an update.
+    cooldown:
+      default-days: 5
+    groups:
+      pip-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
