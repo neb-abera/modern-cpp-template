@@ -39,6 +39,14 @@ jobs:
       with:
         persist-credentials: false
 
+    # A release tag is the version CMakeLists.txt declares
+    # (scripts/check-version.sh). A mismatch stops here, before anything
+    # is built.
+    - name: the tag matches CMakeLists.txt
+      env:
+        TAG: ${{ github.ref_name }}
+      run: ./scripts/check-version.sh --tag "$TAG"
+
     # The Linux release artifact is built inside the project's own toolchain
     # image, the same one development and CI gating use ("train as you
     # fight") — never a hand-picked compiler on the bare runner. The macOS
