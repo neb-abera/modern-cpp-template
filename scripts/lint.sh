@@ -14,7 +14,8 @@
 # It also runs scripts/check-newest-ubuntu.sh: the Ubuntu base image is the
 # newest release, LTS or interim, and Dependabot holds none back. And
 # scripts/check-newest-releases.sh: every release file the Dockerfile
-# downloads, which Dependabot cannot see, is the newest release.
+# downloads, which Dependabot cannot see, is the newest release. And
+# scripts/check-version.sh: CMakeLists.txt carries the only version.
 #
 # check-concurrency.sh says why: a push run keyed by branch or set to cancel
 # is lost when merges land minutes apart.
@@ -104,9 +105,11 @@ if [ "${1:-}" = --self-test ]; then
   ./scripts/check-concurrency.sh --self-test
   ./scripts/check-newest-ubuntu.sh --self-test
   ./scripts/check-newest-releases.sh --self-test
+  ./scripts/check-version.sh --self-test
 else
   lint "$PWD"
   echo "actionlint and shellcheck pass"
+  ./scripts/check-version.sh
   ./scripts/check-newest-ubuntu.sh
   ./scripts/check-newest-releases.sh
 fi

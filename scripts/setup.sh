@@ -10,8 +10,8 @@
 #      option prefix, the *Config.cmake.in file, the presets, Makefile and
 #      workflows, the include directory (and every #include of it, in src/,
 #      test/, bench/, fuzz/ and proof/), the repository links in README.md,
-#      SECURITY.md and the issue-template contact link, and NOTICE. Then it
-#      pushes the change
+#      SECURITY.md and the issue-template contact link, and NOTICE. It
+#      starts the version at 0.1.0, then pushes the change
 #   2. enables the GitHub settings templates cannot carry over: secret
 #      scanning, push protection, private vulnerability reporting, Dependabot
 #      alerts and security updates, delete-branch-on-merge, Update branch and
@@ -61,6 +61,8 @@ rename_project() {
   name_lower=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')
 
   NEW=$name perl -pi -e 's/\Q"Project"\E/"$ENV{NEW}"/' CMakeLists.txt
+  # A new project starts at 0.1.0, not at the template's own version.
+  perl -0pi -e 's/^(project\([^)]*?VERSION )[0-9][^\s)]*/${1}0.1.0/ms' CMakeLists.txt
   # The workflows pass -D<name>_WARNINGS_AS_ERRORS=ON explicitly; without
   # renaming them too, a generated project's CI would set a dead variable
   # and silently lose warnings-as-errors.
@@ -181,6 +183,8 @@ STUB
 
   check "setup.sh runs to the end against the fake repository" run_setup
   check "no template name is left in any tracked file" leftover_template_names "$dir/repo"
+  check "the new project starts at version 0.1.0" \
+    "$dir/repo/scripts/check-version.sh" --tag v0.1.0
   check "NOTICE names the new project first" \
     test "$(head -1 "$dir/repo/NOTICE")" = "fake-widget"
   check "NOTICE names the new holder" \
