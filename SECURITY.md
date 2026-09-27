@@ -48,4 +48,5 @@ report one class of findings that is accepted deliberately:
 * **`linux-libc-dev`**: kernel CVEs attributed to the kernel *headers*
   package. The headers are required to compile C++ on Linux and no kernel
   runs inside the container, so these do not apply to the build environment.
+
 The unused `pebble` service manager is removed from the base image.
