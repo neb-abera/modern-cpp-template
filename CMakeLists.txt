@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.28)
 
 project(
   "Project"
-  VERSION 0.1.0
+  VERSION 2.6.0
   LANGUAGES CXX
 )
 

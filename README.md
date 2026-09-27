@@ -136,8 +136,13 @@ Dockerfile        the pinned toolchain image CI and `make shell` share, and the 
    layer owns the behavior.
 2. `make shell` and implement until the test passes.
 3. `make verify-docker` before pushing. CI gates on the identical suite.
-4. When a milestone works, tag it (`git tag v1.2.0 && git push origin
-   v1.2.0`) to publish a release ([SemVer](http://semver.org/)).
+4. When a milestone works, set `VERSION` in the `project()` call of
+   `CMakeLists.txt` in a pull request and merge it. Then tag that commit
+   (`git tag v1.2.0 && git push origin v1.2.0`) to publish a release
+   ([SemVer](http://semver.org/)). A tag that differs from `CMakeLists.txt`
+   fails the release. Raise PATCH for a fix and MINOR for anything added or
+   upgraded. Raise MAJOR only when a step that worked in the previous
+   release no longer does.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the pull-request process.
 
