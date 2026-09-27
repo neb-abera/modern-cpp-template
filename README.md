@@ -11,7 +11,7 @@ default.
 ## Features
 
 * **Docker-first.** The host needs Docker and git. `make shell` opens a
-  toolchain shell with GCC 16, Clang 23, CMake 4.2, clang-format,
+  toolchain shell with GCC 16, Clang 23, CMake 4.4, clang-format,
   clang-tidy, Doxygen, ccache, Conan 2 and vcpkg, all pinned in the
   [`Dockerfile`](Dockerfile). `make verify-docker` runs the whole suite in a
   fresh container with the source mounted read-only.
@@ -65,8 +65,10 @@ default.
   One that breaks stays open and red. The FetchContent pins (googletest or
   Catch2, Google Benchmark) sit outside every Dependabot ecosystem, so the
   monthly `fetchcontent-upgrade` workflow moves them to the latest releases
-  and opens the PR itself. The LLVM release tarball is outside them too, so
-  the weekly `llvm-upgrade` workflow does the same for it.
+  and opens the PR itself. The GitHub release pins (LLVM, CBMC, Doxygen,
+  vcpkg) are outside them too, so the weekly `pins-upgrade` workflow does
+  the same for them. CMake, Conan and gcovr are hash-pinned in
+  `tools/python/requirements.txt`, which Dependabot's pip ecosystem bumps.
 
 * **Releases from tags.** Pushing `v*` builds and tests on all three
   platforms and publishes packaged install trees to a GitHub Release, with
@@ -210,9 +212,9 @@ Each source below is wired to a failing check.
 
   CBMC carries its own SAT solver, so `CBMC_VERSION` is pinned in the
   Dockerfile and the gate fails when the installed version disagrees. A proof
-  is only as good as the solver that checked it. cbmc comes from the Ubuntu
-  archive, so on a Dependabot base image bump a workflow moves the pin to the
-  new image's cbmc (`scripts/sync-cbmc.sh`) and the proofs run against it.
+  is only as good as the solver that checked it. Ubuntu's archive ships CBMC
+  6.6.0, so CBMC comes from its newest release's `.deb`, checked against its
+  SHA-256.
 
   The base image is the newest Ubuntu release, LTS or interim, or the
   development release once the suite is green on it. Today that is 26.10.
@@ -223,8 +225,8 @@ Each source below is wired to a failing check.
   The compilers are the newest releases too. Ubuntu 26.04 ships GCC 15 and
   LLVM 21. GCC 16 comes from the digest-pinned `gcc` image, which Dependabot
   bumps. LLVM comes from the release tarball, checked against its SHA-256.
-  `scripts/check-newest-llvm.sh`, run by `scripts/lint.sh`, fails when a
-  newer LLVM release has been out 30 days.
+  `scripts/check-newest-pins.py`, run by `scripts/lint.sh`, fails when a
+  newer release of LLVM, CBMC, Doxygen or vcpkg has been out 30 days.
 
 * **Fuzzing.** A libFuzzer harness ([fuzz/](fuzz/)) built with ASan+UBSan
   through the `fuzz` preset. CI smoke-runs it seeded from the committed

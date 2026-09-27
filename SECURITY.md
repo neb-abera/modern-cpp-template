@@ -48,13 +48,11 @@ report two classes of findings that are accepted deliberately:
 * **`linux-libc-dev`**: kernel CVEs attributed to the kernel *headers*
   package. The headers are required to compile C++ on Linux and no kernel
   runs inside the container, so these do not apply to the build environment.
-* **pip's vendored `msgpack` and `setuptools`** (inside the pipx shared
-  venv): the latest pip still vendors these versions for its own use during
+* **pip's vendored `msgpack` and `setuptools`** (inside the pip of the
+  `/opt/pytools` venv): the latest pip still vendors these versions for its own use during
   installs. They are not importable by, or linked into, anything this
   project builds. Revisit when pip updates its vendored set. The advisory
   IDs are suppressed in [`.trivyignore`](.trivyignore), with per-entry
   reasoning, so the CI image scan gates on everything else.
 
-The `conan` venv's own `setuptools` and `msgpack` are upgraded past known
-CVEs at image build time, and the unused `pebble` service manager is removed
-from the base image.
+The unused `pebble` service manager is removed from the base image.

@@ -32,9 +32,10 @@ RUN rm -rf /usr/local/bin/*go* /usr/local/bin/*gfortran* /usr/local/lib/go \
 # serves branch snapshots, so the tools come from the release tarball,
 # checked against the SHA-256 GitHub records for it. Only the tools the
 # gates use are kept. Clang takes its C++ standard library from the GCC
-# above, not the older one Ubuntu's cbmc package pulls in.
-# scripts/check-newest-llvm.sh fails when a newer release has been out 30
-# days, and --update moves both lines.
+# above, not the older one Ubuntu's build-essential pulls in.
+# scripts/check-newest-pins.py fails when a newer release has been out 30
+# days, and --update moves both lines. It covers every pin below that names
+# a GitHub release: LLVM, Doxygen, CBMC and vcpkg.
 FROM ubuntu:26.10@sha256:ee126c2fa0249079a7e24ae3a3d29b04783ef93ab33c868751c9a1289d3fffff AS llvm
 ENV LLVM_VERSION=23.1.2
 ENV LLVM_SHA256=6382de1c1a210ce5a5cc49d18bc8444d137742e7cbf9b19f4ae602bb1ab52534
@@ -55,36 +56,39 @@ RUN curl -fsSL -o /tmp/llvm.tar.zst \
     printf '%s\n' '--gcc-toolchain=/usr/local' > /opt/llvm/bin/clang.cfg && \
     cp /opt/llvm/bin/clang.cfg /opt/llvm/bin/clang++.cfg
 
+# Doxygen, the newest release. Ubuntu ships 1.15, so the binary comes from
+# the release's Linux tarball, checked against the SHA-256 GitHub records.
+FROM llvm AS doxygen
+ENV DOXYGEN_VERSION=1.18.0
+ENV DOXYGEN_SHA256=14fa81bdc34171edb5f1f02b1d60e74802f0439b77fa44e592565d517d72df90
+RUN curl -fsSL -o /tmp/doxygen.tar.gz \
+        "https://github.com/doxygen/doxygen/releases/download/Release_$(echo "$DOXYGEN_VERSION" | tr . _)/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz" && \
+    echo "${DOXYGEN_SHA256}  /tmp/doxygen.tar.gz" | sha256sum -c - && \
+    tar -xzf /tmp/doxygen.tar.gz -C /tmp "doxygen-${DOXYGEN_VERSION}/bin/doxygen" && \
+    install -D -m 755 "/tmp/doxygen-${DOXYGEN_VERSION}/bin/doxygen" /opt/doxygen/doxygen && \
+    rm -rf /tmp/doxygen*
+
 # Pinned by digest so every build resolves the same base image; Dependabot's
 # docker ecosystem keeps the digest current. 26.10 is the development
 # release, taken because the full suite is green on it.
 FROM ubuntu:26.10@sha256:ee126c2fa0249079a7e24ae3a3d29b04783ef93ab33c868751c9a1289d3fffff
 
-# Base toolchain: GCC and LLVM from the stages above, CMake 4.2 from Ubuntu.
-# The unit testing frameworks (GoogleTest/Catch2) are fetched by CMake via
+# Base toolchain: GCC, LLVM and Doxygen from the stages above, CBMC from its
+# release, CMake, Conan and gcovr from PyPI, the rest from Ubuntu. The unit
+# testing frameworks (GoogleTest/Catch2) are fetched by CMake via
 # FetchContent, so they are not installed here.
-# The pinned CBMC version, for the proof gate (scripts/check-proofs.sh).
-# CBMC is a model checker carrying its own SAT solver, and a proof is only as
-# good as the solver that checked it, so the gate fails when the installed
-# version and this line disagree. On a Dependabot base image bump the
-# Dependabot toolchain pins workflow moves this line with scripts/sync-cbmc.sh.
-ENV CBMC_VERSION=6.6.0
 
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         build-essential \
-        cbmc \
         ccache \
-        cmake \
         cppcheck \
         curl \
-        doxygen \
-        gcovr \
         git \
         graphviz \
         ninja-build \
-        pipx \
         python3 \
+        python3-venv \
         python3-yaml \
         tar \
         unzip \
@@ -96,6 +100,31 @@ RUN apt-get update && apt-get upgrade -y && \
 # bundled Go stdlib periodically trips CVE scanners
 RUN rm -f /usr/bin/pebble
 
+# CBMC, the newest release, for the proof gate (scripts/check-proofs.sh).
+# Ubuntu's archive ships 6.6.0, so it comes from the release's .deb, checked
+# against the SHA-256 GitHub records. CBMC carries its own SAT solver, and a
+# proof is only as good as the solver that checked it, so the gate fails
+# when the installed version and CBMC_VERSION disagree.
+ENV CBMC_VERSION=6.11.0
+ENV CBMC_SHA256=b3721aa541038384d7801ea3aeabbcddc3e8845ac8f1cbff637cf8dec7481ac8
+RUN curl -fsSL -o /tmp/cbmc.deb \
+        "https://github.com/diffblue/cbmc/releases/download/cbmc-${CBMC_VERSION}/ubuntu-24.04-cbmc-${CBMC_VERSION}-Linux.deb" && \
+    echo "${CBMC_SHA256}  /tmp/cbmc.deb" | sha256sum -c - && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends /tmp/cbmc.deb && \
+    rm -rf /tmp/cbmc.deb /var/lib/apt/lists/*
+
+# CMake, Conan and gcovr, the newest releases, from PyPI into one venv.
+# tools/python/requirements.txt pins each with a hash for every artifact,
+# and Dependabot's pip ecosystem bumps it.
+COPY tools/python/requirements.txt /tmp/requirements.txt
+RUN python3 -m venv /opt/pytools && \
+    /opt/pytools/bin/pip install --no-cache-dir --require-hashes -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
+ENV PATH="/opt/pytools/bin:$PATH"
+
+COPY --from=doxygen /opt/doxygen/doxygen /usr/local/bin/doxygen
+
 # GCC 16 in /usr/local, ahead of Ubuntu's GCC 15 on PATH and in the loader
 # cache, so programs it builds load its libstdc++.
 COPY --from=gcc /usr/local/ /usr/local/
@@ -105,11 +134,12 @@ ENV PATH="/opt/llvm/bin:$PATH" CC=gcc CXX=g++
 
 # vcpkg (optional package manager), used in manifest mode via the `vcpkg`
 # CMake preset; owned by the non-root user below so it can install ports.
-# Pinned to the commit of the vcpkg 2026.07.29 release rather than floating
-# at HEAD; bump the SHA and this version comment together when updating.
+# Pinned to the commit of a release tag; scripts/check-newest-pins.py moves
+# both lines.
+ENV VCPKG_VERSION=2026.07.29
+ENV VCPKG_COMMIT=9e593bb18ea69cc5095e012465dcd675a822ed0d
 RUN git init -q /opt/vcpkg && \
-    git -C /opt/vcpkg fetch --depth 1 https://github.com/microsoft/vcpkg \
-        9e593bb18ea69cc5095e012465dcd675a822ed0d && \
+    git -C /opt/vcpkg fetch --depth 1 https://github.com/microsoft/vcpkg "$VCPKG_COMMIT" && \
     git -C /opt/vcpkg checkout -q FETCH_HEAD && \
     /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics && \
     chown -R ubuntu:ubuntu /opt/vcpkg
@@ -118,12 +148,3 @@ ENV VCPKG_ROOT=/opt/vcpkg
 # Run as the image's non-root 'ubuntu' user (uid 1000) rather than root
 USER ubuntu
 WORKDIR /home/ubuntu
-# `make shell` runs as the host user, who may not be uid 1000. Opening this
-# home lets that user reach Conan in ~/.local/bin. Nothing secret lives here.
-RUN chmod 755 /home/ubuntu
-
-# Conan 2 (optional package manager), isolated via pipx; its venv's
-# setuptools/msgpack are upgraded past known CVEs
-RUN pipx install conan==2.31.2 && \
-    pipx runpip conan install --quiet --upgrade setuptools msgpack
-ENV PATH="/home/ubuntu/.local/bin:$PATH"

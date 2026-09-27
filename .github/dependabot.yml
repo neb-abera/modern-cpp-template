@@ -24,6 +24,20 @@ updates:
           - minor
           - patch
 
+  # CMake, Conan and gcovr for the toolchain image, hash-pinned.
+  - package-ecosystem: pip
+    directory: /tools/python
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 5
+    groups:
+      pip-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
   - package-ecosystem: docker
     directory: /
     schedule:

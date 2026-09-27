@@ -1,0 +1,6 @@
+# The Python tools the toolchain image installs into /opt/pytools. Dependabot
+# (pip ecosystem) bumps requirements.txt, which pip-compile writes from this
+# file with a hash for every artifact.
+cmake
+conan
+gcovr
