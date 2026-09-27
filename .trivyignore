@@ -2,14 +2,5 @@
 # Each entry needs a reason and a revisit condition; see also SECURITY.md's
 # "Known scanner findings (accepted)" section.
 
-# pip's vendored msgpack (the pip in the /opt/pytools venv, under
-# pip/_vendor). Used only by pip internally during installs; nothing this
-# project builds imports or links it.
-# Not fixable here: pip pins its vendored set. Revisit when pip re-vendors.
-GHSA-6v7p-g79w-8964
-
-# pip's vendored setuptools 70.3.0, same vendored set as above. The CVE is a
-# path traversal in setuptools' PackageIndex, which pip's internal use never
-# exercises. Not fixable here: pip pins its vendored set. Revisit when pip
-# re-vendors.
-CVE-2025-47273
+# None today. Trivy v0.74.0 found nothing HIGH or CRITICAL in the image on
+# 2026-09-27, unfixed findings included.
