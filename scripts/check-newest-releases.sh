@@ -7,7 +7,9 @@
 # Each tool below is a pair of Dockerfile lines, ENV <NAME>_VERSION and
 # ENV <NAME>_SHA256, and a GitHub repository whose releases ship the file.
 # A release counts when it is neither a draft nor a prerelease and ships
-# that file with a SHA-256 GitHub records.
+# that file with a SHA-256 GitHub records. A tool whose file is `-` is
+# fetched by git at its release tag's commit, so its pair is ENV
+# <NAME>_VERSION and ENV <NAME>_COMMIT.
 #   1. ENV <NAME>_VERSION names the newest release, once that release has
 #      been out GRACE_DAYS (30).
 #   2. --update moves every pair to the newest release, taking the SHA-256
@@ -35,9 +37,13 @@ CMAKE   Kitware/CMake      v{v}         cmake-{v}-linux-x86_64.tar.gz
 CBMC    diffblue/cbmc      cbmc-{v}     ubuntu-24.04-cbmc-{v}-Linux.deb
 CCACHE  ccache/ccache      v{v}         ccache-{v}-linux-x86_64-glibc.tar.xz
 DOXYGEN doxygen/doxygen    Release_{u}  doxygen-{v}.linux.bin.tar.gz
+VCPKG   microsoft/vcpkg    {v}          -
 '
 
 pinned() { sed -n "s/^ENV $1=\(.*\)$/\1/p" Dockerfile | head -1; }
+
+# integrity <file>: the ENV suffix of a tool's second pin line.
+integrity() { if [ "$1" = - ]; then echo COMMIT; else echo SHA256; fi; }
 
 # newest <name> <repo> <tag> <file>: print "<version> <published date>
 # <sha256>" for the newest release of one tool.
@@ -57,7 +63,8 @@ newest() {
     echo "error: could not read $url: an outage, not a pass" >&2
     return 2
   fi
-  python3 - "$json" "$tag" "$file" << 'EOF' || { rm -f "$json"; echo "error: $url names no $name release: an outage, not a pass" >&2; return 2; }
+  local out version date sha rtag
+  if ! out="$(python3 - "$json" "$tag" "$file" << 'EOF'
 import json, re, sys
 path, tag, template = sys.argv[1:4]
 pattern = re.escape(tag).replace(r"\{v\}", r"(\d+(?:\.\d+)+)").replace(r"\{u\}", r"(\d+(?:_\d+)+)")
@@ -68,18 +75,37 @@ for r in json.load(open(path)):
         continue
     parts = m.group(1).replace("_", ".").split(".")
     version = ".".join(parts)
-    want = template.replace("{v}", version)
-    asset = next((a for a in r.get("assets", []) if a.get("name") == want), None)
-    if not asset or not str(asset.get("digest", "")).startswith("sha256:"):
-        continue
+    digest = "-"
+    if template != "-":
+        want = template.replace("{v}", version)
+        asset = next((a for a in r.get("assets", []) if a.get("name") == want), None)
+        if not asset or not str(asset.get("digest", "")).startswith("sha256:"):
+            continue
+        digest = asset["digest"][len("sha256:"):]
     key = tuple(int(x) for x in parts) + (0,) * (4 - len(parts))
     if best is None or key > best[0]:
-        best = (key, version, r["published_at"][:10], asset["digest"][len("sha256:"):])
+        best = (key, version, r["published_at"][:10], digest, r["tag_name"])
 if best is None:
     sys.exit(1)
-print(best[1], best[2], best[3])
+print(best[1], best[2], best[3], best[4])
 EOF
+  )"; then
+    rm -f "$json"
+    echo "error: $url names no $name release: an outage, not a pass" >&2
+    return 2
+  fi
   rm -f "$json"
+  read -r version date sha rtag <<< "$out"
+  if [ "$file" = - ]; then
+    # The integrity value is the commit the release tag points at.
+    if [ -n "${RELEASES_DIR:-}" ]; then url="file://$RELEASES_DIR/$name-commit-$rtag"; else url="https://api.github.com/repos/$repo/commits/$rtag"; fi
+    sha="$(curl -fsSL --retry 2 --max-time 60 "${auth[@]}" "$url" 2> /dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha",""))' 2> /dev/null || true)"
+    if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+      echo "error: $url names no commit for $rtag: an outage, not a pass" >&2
+      return 2
+    fi
+  fi
+  echo "$version $date $sha"
 }
 
 check() {
@@ -87,8 +113,8 @@ check() {
   while read -r name repo tag file; do
     [ -n "$name" ] || continue
     cur="$(pinned "${name}_VERSION")"
-    if [ -z "$cur" ] || [ -z "$(pinned "${name}_SHA256")" ]; then
-      echo "error: the Dockerfile has no 'ENV ${name}_VERSION=' and 'ENV ${name}_SHA256=' pair" >&2
+    if [ -z "$cur" ] || [ -z "$(pinned "${name}_$(integrity "$file")")" ]; then
+      echo "error: the Dockerfile has no 'ENV ${name}_VERSION=' and 'ENV ${name}_$(integrity "$file")=' pair" >&2
       status=1
       continue
     fi
@@ -122,10 +148,14 @@ update() {
       continue
     fi
     sed -i.bak -e "s/^ENV ${name}_VERSION=.*$/ENV ${name}_VERSION=$version/" \
-      -e "s/^ENV ${name}_SHA256=.*$/ENV ${name}_SHA256=$sha/" Dockerfile
+      -e "s/^ENV ${name}_$(integrity "$file")=.*$/ENV ${name}_$(integrity "$file")=$sha/" Dockerfile
     rm -f Dockerfile.bak
-    echo "$name $cur -> $version (released $date, sha256 $sha)"
-    moved+="- $name $cur to $version, released $date. The SHA-256 is the one GitHub records for $(printf '%s' "$file" | sed "s/{v}/$version/")."$'\n'
+    echo "$name $cur -> $version (released $date, $(integrity "$file" | tr '[:upper:]' '[:lower:]') $sha)"
+    if [ "$file" = - ]; then
+      moved+="- $name $cur to $version, released $date, at the commit its release tag points to."$'\n'
+    else
+      moved+="- $name $cur to $version, released $date. The SHA-256 is the one GitHub records for $(printf '%s' "$file" | sed "s/{v}/$version/")."$'\n'
+    fi
   done <<< "$TOOLS"
   if [ -z "$moved" ]; then
     [ -z "${GITHUB_OUTPUT:-}" ] || echo "updates=false" >> "$GITHUB_OUTPUT"
@@ -154,7 +184,7 @@ expect() { # expect <exit> <text> <label> <mode> [env...]
 }
 
 self_test() {
-  local name repo tag file cur next old recent sha set ctag ntag
+  local name repo tag file cur next old recent sha commit set ctag ntag kind want
   DIR="$(mktemp -d)"
   # shellcheck disable=SC2064 # expand now: the directory name is fixed
   trap "rm -rf '$DIR'" EXIT
@@ -163,6 +193,7 @@ self_test() {
   old="$(date -u -d '-200 days' +%Y-%m-%dT00:00:00Z)"
   recent="$(date -u -d '-10 days' +%Y-%m-%dT00:00:00Z)"
   sha="$(printf 'a%.0s' {1..64})"
+  commit="$(printf 'b%.0s' {1..40})"
   # release <tag> <version> <date> <file template> [prerelease] [asset name]
   release() {
     printf '{"tag_name":"%s","draft":false,"prerelease":%s,"published_at":"%s","assets":[{"name":"%s","digest":"sha256:%s"}]}' \
@@ -187,13 +218,22 @@ self_test() {
     printf '[%s,%s]' "$(release "$ntag" "$next" "$old" "$file")" "$(release "$ctag" "$cur" "$old" "$file")" > "$DIR/behind/$name"
     printf '[%s,%s]' "$(release "$ntag" "$next" "$recent" "$file")" "$(release "$ctag" "$cur" "$old" "$file")" > "$DIR/grace/$name"
     printf '[%s,%s]' "$(release "$ntag" "$next" "$old" "$file" true)" "$(release "$ctag" "$cur" "$old" "$file")" > "$DIR/pre/$name"
-    printf '[%s,%s]' "$(release "$ntag" "$next" "$old" "$file" false other.bin)" "$(release "$ctag" "$cur" "$old" "$file")" > "$DIR/noasset/$name"
+    if [ "$file" = - ]; then
+      # Nothing to lack: a commit-pinned tool's newer release is taken.
+      cp "$DIR/same/$name" "$DIR/noasset/$name"
+      for set in same behind grace pre noasset; do
+        printf '{"sha":"%s"}' "$commit" > "$DIR/$set/$name-commit-$ctag"
+        printf '{"sha":"%s"}' "$commit" > "$DIR/$set/$name-commit-$ntag"
+      done
+    else
+      printf '[%s,%s]' "$(release "$ntag" "$next" "$old" "$file" false other.bin)" "$(release "$ctag" "$cur" "$old" "$file")" > "$DIR/noasset/$name"
+    fi
     printf '[]' > "$DIR/empty/$name"
-    echo "$name $cur $next" >> "$DIR/versions"
+    echo "$name $cur $next $(integrity "$file")" >> "$DIR/versions"
   done <<< "$TOOLS"
 
   expect 0 "" "the real Dockerfile passes on the newest releases" check RELEASES_DIR="$DIR/same"
-  while read -r name cur next; do
+  while read -r name cur next kind; do
     expect 1 "$name $cur is behind $name $next" "$name a major behind past the grace fails" check RELEASES_DIR="$DIR/behind"
   done < "$DIR/versions"
   expect 0 "" "a release inside the grace passes" check RELEASES_DIR="$DIR/grace"
@@ -202,17 +242,23 @@ self_test() {
   expect 2 "an outage, not a pass" "a listing with no release is an outage" check RELEASES_DIR="$DIR/empty"
   expect 2 "an outage, not a pass" "an unreadable listing is an outage" check RELEASES_DIR="$DIR/none"
   expect 0 "" "--update moves the pins" update RELEASES_DIR="$DIR/behind"
-  while read -r name cur next; do
-    if grep -qx "ENV ${name}_VERSION=$next" "$DIR/repo/Dockerfile" && grep -qx "ENV ${name}_SHA256=$sha" "$DIR/repo/Dockerfile"; then
-      echo "self-test: ok: the Dockerfile names $name $next and its SHA-256 after --update"
+  while read -r name cur next kind; do
+    if [ "$kind" = COMMIT ]; then want="$commit"; else want="$sha"; fi
+    if grep -qx "ENV ${name}_VERSION=$next" "$DIR/repo/Dockerfile" && grep -qx "ENV ${name}_${kind}=$want" "$DIR/repo/Dockerfile"; then
+      echo "self-test: ok: the Dockerfile names $name $next and its ${kind} after --update"
     else
-      echo "self-test FAILED: --update left the Dockerfile without $name $next and its SHA-256" >&2
+      echo "self-test FAILED: --update left the Dockerfile without $name $next and its ${kind}" >&2
       SELF_TEST_FAILED=1
     fi
   done < "$DIR/versions"
   expect 0 "" "the updated Dockerfile passes" check RELEASES_DIR="$DIR/behind"
   sed -i '/^ENV LLVM_SHA256=/d' "$DIR/repo/Dockerfile"
   expect 1 "no 'ENV LLVM_VERSION=' and 'ENV LLVM_SHA256=' pair" "a missing SHA-256 pin fails" check RELEASES_DIR="$DIR/behind"
+  sed -i '/^ENV VCPKG_COMMIT=/d' "$DIR/repo/Dockerfile"
+  expect 1 "no 'ENV VCPKG_VERSION=' and 'ENV VCPKG_COMMIT=' pair" "a missing commit pin fails" check RELEASES_DIR="$DIR/behind"
+  rm "$DIR/behind/VCPKG-commit-$(tag_for '{v}' "$(awk '$1 == "VCPKG" {print $3}' "$DIR/versions")")"
+  cp Dockerfile "$DIR/repo/Dockerfile"
+  expect 2 "an outage, not a pass" "a release tag with no readable commit is an outage" check RELEASES_DIR="$DIR/behind"
   if [ "$SELF_TEST_FAILED" -eq 0 ]; then
     echo "self-test: every planted defect was caught; the real Dockerfile passes"
   fi

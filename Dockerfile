@@ -137,11 +137,13 @@ ENV PATH="/opt/llvm/bin:/opt/cmake/bin:$PATH" CC=gcc CXX=g++
 
 # vcpkg (optional package manager), used in manifest mode via the `vcpkg`
 # CMake preset; owned by the non-root user below so it can install ports.
-# Pinned to the commit of the vcpkg 2026.07.29 release rather than floating
-# at HEAD; bump the SHA and this version comment together when updating.
+# Pinned to the commit of a release tag. scripts/check-newest-releases.sh
+# fails when a newer release has been out 30 days, and --update moves both
+# lines.
+ENV VCPKG_VERSION=2026.07.29
+ENV VCPKG_COMMIT=9e593bb18ea69cc5095e012465dcd675a822ed0d
 RUN git init -q /opt/vcpkg && \
-    git -C /opt/vcpkg fetch --depth 1 https://github.com/microsoft/vcpkg \
-        9e593bb18ea69cc5095e012465dcd675a822ed0d && \
+    git -C /opt/vcpkg fetch --depth 1 https://github.com/microsoft/vcpkg "$VCPKG_COMMIT" && \
     git -C /opt/vcpkg checkout -q FETCH_HEAD && \
     /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics && \
     chown -R ubuntu:ubuntu /opt/vcpkg
