@@ -15,3 +15,12 @@ GHSA-6v7p-g79w-8964
 # time. Not fixable here: pip pins its vendored set. Revisit when pip
 # re-vendors.
 CVE-2025-47273
+
+# pip's vendored urllib3 2.7.0, same vendored set as above
+# (pip/_vendor/vendor.txt). pip 26.2.1, the latest release, and pip's main
+# branch both pin 2.7.0. pip uses it only for its own downloads during
+# installs at image build. The conan venv's real urllib3 is 2.8.0. Not
+# fixable here: pip pins its vendored set. Revisit when pip re-vendors
+# urllib3 >= 2.8.0.
+CVE-2026-97687
+CVE-2026-97689

@@ -48,9 +48,9 @@ report two classes of findings that are accepted deliberately:
 * **`linux-libc-dev`**: kernel CVEs attributed to the kernel *headers*
   package. The headers are required to compile C++ on Linux and no kernel
   runs inside the container, so these do not apply to the build environment.
-* **pip's vendored `msgpack` and `setuptools`** (inside the pipx shared
-  venv): the latest pip still vendors these versions for its own use during
-  installs. They are not importable by, or linked into, anything this
+* **pip's vendored `msgpack`, `setuptools` and `urllib3`** (inside the
+  pipx shared venv): the latest pip still vendors these versions for its own
+  use during installs. They are not importable by, or linked into, anything this
   project builds. Revisit when pip updates its vendored set. The advisory
   IDs are suppressed in [`.trivyignore`](.trivyignore), with per-entry
   reasoning, so the CI image scan gates on everything else.
