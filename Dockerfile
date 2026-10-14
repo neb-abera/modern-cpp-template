@@ -20,7 +20,7 @@ COPY --from=shellcheck /bin/shellcheck /usr/local/bin/shellcheck
 # snapshot. The Docker Official Image builds the GNU release into
 # /usr/local, which the toolchain stage copies. Dependabot bumps this line,
 # majors included.
-FROM gcc:16.2.0@sha256:ef558a40d1f13115293feee01526dbdb9aaad7c9c5a00da05f471ce042e855c1 AS gcc
+FROM gcc:16.2.0@sha256:17043c23ec2ad97fc3beca18da77275d26be5db5cd70ea0a5d73200e21a8e999 AS gcc
 # The image also builds Go and Fortran, which nothing here uses.
 RUN rm -rf /usr/local/bin/*go* /usr/local/bin/*gfortran* /usr/local/lib/go \
         /usr/local/lib64/libgo* /usr/local/lib64/libgfortran* \
