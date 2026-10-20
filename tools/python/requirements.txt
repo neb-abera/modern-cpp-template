@@ -2,5 +2,5 @@
 # Dockerfile reads each pin from here, and Dependabot's pip ecosystem bumps
 # them. Conan 2 is the optional package manager. gcovr enforces the
 # line-coverage floor.
-conan==2.32.0
+conan==2.33.0
 gcovr==8.6
