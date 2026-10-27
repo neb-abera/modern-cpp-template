@@ -36,8 +36,8 @@ RUN rm -rf /usr/local/bin/*go* /usr/local/bin/*gfortran* /usr/local/lib/go \
 # scripts/check-newest-releases.sh fails when a newer release has been out 30
 # days, and --update moves both lines.
 FROM ubuntu:26.10@sha256:ee126c2fa0249079a7e24ae3a3d29b04783ef93ab33c868751c9a1289d3fffff AS llvm
-ENV LLVM_VERSION=23.1.2
-ENV LLVM_SHA256=6382de1c1a210ce5a5cc49d18bc8444d137742e7cbf9b19f4ae602bb1ab52534
+ENV LLVM_VERSION=23.1.4
+ENV LLVM_SHA256=efdd1dbd089b99bfcfcde7b8eb1236163f2e88df5a981cca4f783ec9cb5e0378
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates curl zstd && \
     rm -rf /var/lib/apt/lists/*
@@ -61,12 +61,12 @@ RUN curl -fsSL -o /tmp/llvm.tar.zst \
 # records for it. scripts/check-newest-releases.sh fails when a newer release
 # has been out 30 days, and --update moves the pins.
 FROM ubuntu:26.10@sha256:ee126c2fa0249079a7e24ae3a3d29b04783ef93ab33c868751c9a1289d3fffff AS tools
-ENV CMAKE_VERSION=4.4.3
-ENV CMAKE_SHA256=d6c83076c575bc00b823522ac974bda66d0af05d6ddc30e739c12385cf32c6cc
+ENV CMAKE_VERSION=4.4.4
+ENV CMAKE_SHA256=e5bb807f7728cb60cd8b27ebc97a2edb469b68655f21e844a600c3575b76f5bb
 ENV CBMC_VERSION=6.11.0
 ENV CBMC_SHA256=b3721aa541038384d7801ea3aeabbcddc3e8845ac8f1cbff637cf8dec7481ac8
-ENV CCACHE_VERSION=4.14
-ENV CCACHE_SHA256=45a91165db7092e67c6208ada03f54700e684c4cd3735f9031de95669ed9272c
+ENV CCACHE_VERSION=4.14.2
+ENV CCACHE_SHA256=bd1313f5316f594443dcb4113a4191c666ac6450e0cf016ff8cb8b080f46c160
 ENV DOXYGEN_VERSION=1.18.0
 ENV DOXYGEN_SHA256=14fa81bdc34171edb5f1f02b1d60e74802f0439b77fa44e592565d517d72df90
 RUN apt-get update && \
@@ -140,8 +140,8 @@ ENV PATH="/opt/llvm/bin:/opt/cmake/bin:$PATH" CC=gcc CXX=g++
 # Pinned to the commit of a release tag. scripts/check-newest-releases.sh
 # fails when a newer release has been out 30 days, and --update moves both
 # lines.
-ENV VCPKG_VERSION=2026.07.29
-ENV VCPKG_COMMIT=9e593bb18ea69cc5095e012465dcd675a822ed0d
+ENV VCPKG_VERSION=2026.10.16
+ENV VCPKG_COMMIT=9eec002df1cd109f8f104cd966a763daf9751489
 RUN git init -q /opt/vcpkg && \
     git -C /opt/vcpkg fetch --depth 1 https://github.com/microsoft/vcpkg "$VCPKG_COMMIT" && \
     git -C /opt/vcpkg checkout -q FETCH_HEAD && \
