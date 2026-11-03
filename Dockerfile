@@ -35,7 +35,7 @@ RUN rm -rf /usr/local/bin/*go* /usr/local/bin/*gfortran* /usr/local/lib/go \
 # above, not the older one the cbmc package pulls in.
 # scripts/check-newest-releases.sh fails when a newer release has been out 30
 # days, and --update moves both lines.
-FROM ubuntu:26.10@sha256:ee126c2fa0249079a7e24ae3a3d29b04783ef93ab33c868751c9a1289d3fffff AS llvm
+FROM ubuntu:26.10@sha256:262df65c0ec6bf8d9dcc87454f4330a05fae4b97825f45854af3b136666584c2 AS llvm
 ENV LLVM_VERSION=23.1.2
 ENV LLVM_SHA256=6382de1c1a210ce5a5cc49d18bc8444d137742e7cbf9b19f4ae602bb1ab52534
 RUN apt-get update && \
@@ -60,7 +60,7 @@ RUN curl -fsSL -o /tmp/llvm.tar.zst \
 # project's GitHub release publishes, checked against the SHA-256 GitHub
 # records for it. scripts/check-newest-releases.sh fails when a newer release
 # has been out 30 days, and --update moves the pins.
-FROM ubuntu:26.10@sha256:ee126c2fa0249079a7e24ae3a3d29b04783ef93ab33c868751c9a1289d3fffff AS tools
+FROM ubuntu:26.10@sha256:262df65c0ec6bf8d9dcc87454f4330a05fae4b97825f45854af3b136666584c2 AS tools
 ENV CMAKE_VERSION=4.4.3
 ENV CMAKE_SHA256=d6c83076c575bc00b823522ac974bda66d0af05d6ddc30e739c12385cf32c6cc
 ENV CBMC_VERSION=6.11.0
@@ -95,7 +95,7 @@ RUN set -e; \
 # Pinned by digest so every build resolves the same base image; Dependabot's
 # docker ecosystem keeps the digest current. 26.10 is the development
 # release, taken because the full suite is green on it.
-FROM ubuntu:26.10@sha256:ee126c2fa0249079a7e24ae3a3d29b04783ef93ab33c868751c9a1289d3fffff
+FROM ubuntu:26.10@sha256:262df65c0ec6bf8d9dcc87454f4330a05fae4b97825f45854af3b136666584c2
 
 # Base toolchain: GCC, LLVM, CMake, CBMC, ccache and Doxygen from the stages
 # above. The unit testing frameworks (GoogleTest/Catch2) are fetched by CMake
