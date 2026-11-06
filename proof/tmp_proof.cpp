@@ -61,7 +61,7 @@ void proof_add_is_commutative()
                    "add is commutative");
 }
 
-// `add` has no undefined behaviour given its precondition.
+// `add` has no undefined behavior given its precondition.
 //
 // Nothing is asserted. check-proofs.sh runs this harness with
 // --signed-overflow-check and the other UB checks on, so the body is the
