@@ -21,8 +21,8 @@ set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
   benchmark
   GIT_REPOSITORY https://github.com/google/benchmark.git
-  # v1.9.5, pinned to its commit SHA: release tags are mutable
-  GIT_TAG 192ef10025eb2c4cdd392bc502f0c852196baa48
+  # v1.10.0, pinned to its commit SHA: release tags are mutable
+  GIT_TAG a6b4a9f00b36c19af9997d68a1cf6e0b5b3d032c
   SYSTEM
   EXCLUDE_FROM_ALL
   FIND_PACKAGE_ARGS NAMES benchmark
