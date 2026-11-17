@@ -1,12 +1,12 @@
 # Prose linter, for scripts/check-prose.sh. Never built into anything: the
 # stage exists so the image is a FROM line Dependabot sees and bumps, and the
 # script reads it from here rather than pinning a version of its own.
-FROM jdkato/vale:v3.24.0@sha256:f5a09410093936d4919d868120786da9789e2652ac321c66a895403eca020ae4 AS vale
+FROM jdkato/vale:v3.26.0@sha256:d4ebc402b255dacc759c468ed8c91bd5be82918bbb59583558539f3be80f1f01 AS vale
 
 # The scanners CI runs, for their versions only: trivy-action and
 # sbom-action take a version input, and these FROM lines are what
 # Dependabot bumps. Nothing is built from them.
-FROM aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c AS trivy
+FROM aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb AS trivy
 
 # Workflow and script linters, for scripts/lint.sh, which builds this stage
 # alone (`--target lint`). Both tools are FROM lines Dependabot sees and
