@@ -61,8 +61,8 @@ RUN curl -fsSL -o /tmp/llvm.tar.zst \
 # records for it. scripts/check-newest-releases.sh fails when a newer release
 # has been out 30 days, and --update moves the pins.
 FROM ubuntu:26.10@sha256:262df65c0ec6bf8d9dcc87454f4330a05fae4b97825f45854af3b136666584c2 AS tools
-ENV CMAKE_VERSION=4.4.5
-ENV CMAKE_SHA256=ed85135c5a5135b45e50423cb406dea04ca3338da0b8ef3c9ede963559680be0
+ENV CMAKE_VERSION=4.5.0
+ENV CMAKE_SHA256=81f0d5b0960fb6adc8197030ffc827fba937640d51e73e39e0e9e40d88c66f6f
 ENV CBMC_VERSION=6.11.0
 ENV CBMC_SHA256=b3721aa541038384d7801ea3aeabbcddc3e8845ac8f1cbff637cf8dec7481ac8
 ENV CCACHE_VERSION=4.14.3
