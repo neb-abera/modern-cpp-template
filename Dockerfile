@@ -36,8 +36,8 @@ RUN rm -rf /usr/local/bin/*go* /usr/local/bin/*gfortran* /usr/local/lib/go \
 # scripts/check-newest-releases.sh fails when a newer release has been out 30
 # days, and --update moves both lines.
 FROM ubuntu:26.10@sha256:262df65c0ec6bf8d9dcc87454f4330a05fae4b97825f45854af3b136666584c2 AS llvm
-ENV LLVM_VERSION=23.1.5
-ENV LLVM_SHA256=c3107384835f788768f614db610e87fba7077f125ca950eb02a78bab0a308065
+ENV LLVM_VERSION=23.1.6
+ENV LLVM_SHA256=59e14234f145927f982b50627e8bafaf2fca50151b7d973d6a0b40796ddcfe9a
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates curl zstd && \
     rm -rf /var/lib/apt/lists/*
@@ -61,8 +61,8 @@ RUN curl -fsSL -o /tmp/llvm.tar.zst \
 # records for it. scripts/check-newest-releases.sh fails when a newer release
 # has been out 30 days, and --update moves the pins.
 FROM ubuntu:26.10@sha256:262df65c0ec6bf8d9dcc87454f4330a05fae4b97825f45854af3b136666584c2 AS tools
-ENV CMAKE_VERSION=4.4.5
-ENV CMAKE_SHA256=ed85135c5a5135b45e50423cb406dea04ca3338da0b8ef3c9ede963559680be0
+ENV CMAKE_VERSION=4.5.1
+ENV CMAKE_SHA256=83b71181fb62b4fe8f26067a9321448572e7a43bd04ff6c7f54a24c33698f16d
 ENV CBMC_VERSION=6.11.0
 ENV CBMC_SHA256=b3721aa541038384d7801ea3aeabbcddc3e8845ac8f1cbff637cf8dec7481ac8
 ENV CCACHE_VERSION=4.14.3
